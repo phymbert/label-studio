@@ -6,30 +6,21 @@
   "tags": [],
   "targets": {
     "build": {
-      "executor": "@nx/webpack:webpack",
+      "executor": "@nx/vite:build",
       "defaultConfiguration": "production",
       "options": {
-        "compiler": "babel",
-        "webpackConfig": "webpack.config.js",
+        "configFile": "libs/datamanager/vite.config.ts",
         "tsConfig": "libs/datamanager/tsconfig.lib.json",
-        "main": "libs/datamanager/src/index.js",
         "outputPath": "dist/libs/datamanager",
         "isolatedConfig": true,
         "generatePackageJson": true
       },
       "configurations": {
         "development": {
-          "extractLicenses": false,
-          "optimization": false,
-          "sourceMap": true,
-          "vendorChunk": true
+          "mode": "development"
         },
         "production": {
-          "optimization": true,
-          "sourceMap": false,
-          "namedChunks": false,
-          "extractLicenses": true,
-          "vendorChunk": false
+          "mode": "production"
         }
       }
     },

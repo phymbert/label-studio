@@ -1,7 +1,6 @@
 /* global Sentry */
 
 import { createBrowserHistory } from "history";
-import { render } from "react-dom";
 import { Router } from "react-router-dom";
 import { LEAVE_BLOCKER_KEY, leaveBlockerCallback } from "../components/LeaveBlocker/LeaveBlocker";
 import { initSentry } from "../config/Sentry";
@@ -22,15 +21,12 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@humansignal/core/lib/utils/query-client";
 import { RootPage } from "./RootPage";
 import { ff } from "@humansignal/core";
-import "@humansignal/ui/src/tailwind.css";
-import "./App.scss";
 import { AuthProvider } from "@humansignal/core/providers/AuthProvider";
 
-const baseURL = new URL(APP_SETTINGS.hostname || location.origin);
 export const UNBLOCK_HISTORY_MESSAGE = "UNBLOCK_HISTORY";
 
 const browserHistory = createBrowserHistory({
-  basename: baseURL.pathname || "/",
+  basename: new URL(APP_SETTINGS.hostname || location.origin).pathname || "/",
   // callback is an async way to confirm or decline going to another page in the context of routing. It accepts `true` or `false`
   getUserConfirmation: (message, callback) => {
     // `history.block` doesn't block events, so in the case of listeners,
@@ -56,7 +52,7 @@ window.LSH = browserHistory;
 
 initSentry(browserHistory);
 
-const App = ({ content }) => {
+const App = ({ content = document.querySelector("#main-content")?.innerHTML ?? "" }) => {
   return (
     <ErrorBoundary>
       <Router history={browserHistory}>
@@ -85,11 +81,4 @@ const App = ({ content }) => {
   );
 };
 
-const root = document.querySelector(".app-wrapper");
-const content = document.querySelector("#main-content");
-
-render(<App content={content.innerHTML} />, root);
-
-if (module?.hot) {
-  module.hot.accept(); // Enable HMR for React components
-}
+export default App;
