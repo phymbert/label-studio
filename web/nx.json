@@ -46,7 +46,7 @@
     "@nx/react": {
       "application": {
         "style": "scss",
-        "bundler": "webpack",
+        "bundler": "vite",
         "babel": true
       },
       "component": {

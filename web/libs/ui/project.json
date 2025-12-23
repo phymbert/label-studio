@@ -6,11 +6,10 @@
   "tags": [],
   "targets": {
     "build": {
-      "executor": "@nx/webpack:webpack",
+      "executor": "@nx/vite:build",
       "defaultConfiguration": "production",
       "options": {
-        "compiler": "babel",
-        "webpackConfig": "webpack.config.js",
+        "configFile": "libs/ui/vite.config.ts",
         "tsConfig": "libs/ui/tsconfig.lib.json",
         "main": "libs/ui/src/index.ts",
         "outputPath": "dist/libs/ui",

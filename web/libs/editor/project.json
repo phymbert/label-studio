@@ -6,14 +6,11 @@
   "tags": [],
   "targets": {
     "build": {
-      "executor": "@nx/webpack:webpack",
+      "executor": "@nx/vite:build",
       "defaultConfiguration": "production",
       "options": {
-        "compiler": "babel",
-        "webpackConfig": "webpack.config.js",
-        "index": "libs/editor/public/index.html",
+        "configFile": "libs/editor/vite.config.ts",
         "tsConfig": "libs/editor/tsconfig.lib.json",
-        "main": "libs/editor/src/standalone.js",
         "outputPath": "dist/libs/editor",
         "isolatedConfig": true,
         "generatePackageJson": true,
@@ -27,27 +24,19 @@
       },
       "configurations": {
         "development": {
-          "extractLicenses": false,
-          "optimization": false,
-          "sourceMap": true,
-          "vendorChunk": true
+          "mode": "development"
         },
         "production": {
-          "optimization": true,
-          "sourceMap": false,
-          "namedChunks": false,
-          "extractLicenses": true,
-          "vendorChunk": false
+          "mode": "production"
         }
       }
     },
     "serve": {
-      "executor": "@nx/webpack:dev-server",
+      "executor": "@nx/vite:dev-server",
       "defaultConfiguration": "development",
       "options": {
         "port": 3000,
         "buildTarget": "editor:build",
-        "hmr": true,
         "watch": true,
         "liveReload": true
       },

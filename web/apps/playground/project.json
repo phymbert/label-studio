@@ -6,61 +6,38 @@
   "tags": [],
   "targets": {
     "build": {
-      "executor": "@nx/webpack:webpack",
+      "executor": "@nx/vite:build",
       "outputs": ["{options.outputPath}"],
       "defaultConfiguration": "production",
       "options": {
-        "compiler": "babel",
         "outputPath": "dist/apps/playground/playground-assets",
-        "index": "apps/playground/src/index.html",
-        "baseHref": "/",
-        "main": "apps/playground/src/main.tsx",
+        "configFile": "apps/playground/vite.config.ts",
         "tsConfig": "apps/playground/tsconfig.app.json",
-        "assets": [],
-        "styles": [],
-        "scripts": [],
-        "isolatedConfig": true,
-        "webpackConfig": "webpack.config.js"
+        "assets": ["apps/playground/index.html"],
+        "generatePackageJson": false
       },
       "configurations": {
         "development": {
-          "extractLicenses": false,
-          "optimization": false,
-          "sourceMap": true,
-          "vendorChunk": true,
-          "baseHref": "/"
+          "mode": "development"
         },
         "production": {
-          "fileReplacements": [
-            {
-              "replace": "apps/playground/src/environments/environment.ts",
-              "with": "apps/playground/src/environments/environment.prod.ts"
-            }
-          ],
-          "optimization": true,
-          "sourceMap": false,
-          "namedChunks": false,
-          "extractLicenses": true,
-          "vendorChunk": false,
-          "baseHref": "/playground-assets/"
+          "mode": "production"
         }
       }
     },
     "serve": {
-      "executor": "@nx/webpack:dev-server",
+      "executor": "@nx/vite:dev-server",
       "defaultConfiguration": "development",
       "options": {
         "buildTarget": "playground:build",
-        "port": 4200,
-        "hmr": true
+        "port": 4200
       },
       "configurations": {
         "development": {
           "buildTarget": "playground:build:development"
         },
         "production": {
-          "buildTarget": "playground:build:production",
-          "hmr": false
+          "buildTarget": "playground:build:production"
         }
       }
     },
