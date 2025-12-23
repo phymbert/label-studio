@@ -55,6 +55,13 @@ If you want to build a local image, run:
 ```bash
 docker build -t heartexlabs/label-studio:latest .
 ```
+To use a private or Artifactory-hosted mirror (for example, to mirror GitHub packages) while building the image, pass custom Python index arguments:
+```bash
+docker build -t heartexlabs/label-studio:latest \
+  --build-arg PIP_INDEX_URL=https://artifactory.example.com/api/pypi/pypi/simple \
+  --build-arg PIP_EXTRA_INDEX_URL=https://artifactory.example.com/api/pypi/github/simple \
+  --build-arg PIP_TRUSTED_HOST=artifactory.example.com .
+```
 
 ### Run with Docker Compose
 Docker Compose script provides production-ready stack consisting of the following components:

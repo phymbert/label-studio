@@ -2,6 +2,9 @@
 ARG NODE_VERSION=22
 ARG PYTHON_VERSION=3.13
 ARG POETRY_VERSION=2.1.4
+ARG PIP_INDEX_URL="https://pypi.org/simple"
+ARG PIP_EXTRA_INDEX_URL
+ARG PIP_TRUSTED_HOST
 ARG VERSION_OVERRIDE
 ARG BRANCH_OVERRIDE
 
@@ -54,6 +57,9 @@ RUN --mount=type=cache,target=/root/web/.yarn,id=yarn-cache,sharing=locked \
 ################################ Stage: venv-builder (prepare the virtualenv)
 FROM python:${PYTHON_VERSION}-slim-trixie AS venv-builder
 ARG POETRY_VERSION
+ARG PIP_INDEX_URL
+ARG PIP_EXTRA_INDEX_URL
+ARG PIP_TRUSTED_HOST
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -61,6 +67,9 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=on \
     PIP_DEFAULT_TIMEOUT=100 \
     PIP_CACHE_DIR="/.cache" \
+    PIP_INDEX_URL=${PIP_INDEX_URL} \
+    PIP_EXTRA_INDEX_URL=${PIP_EXTRA_INDEX_URL} \
+    PIP_TRUSTED_HOST=${PIP_TRUSTED_HOST} \
     POETRY_CACHE_DIR="/.poetry-cache" \
     POETRY_HOME="/opt/poetry" \
     POETRY_VIRTUALENVS_IN_PROJECT=true \
