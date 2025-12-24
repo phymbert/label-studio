@@ -15,21 +15,9 @@ router.register(r'users', api.UserAPI, basename='user')
 
 urlpatterns = [
     re_path(r'^api/', include(router.urls)),
-]
-
-if settings.OIDC_ENABLED:
-    urlpatterns += [
-        path('user/sso/login/', views.user_sso_login, name='user-sso-login'),
-        path('user/sso/callback/', views.user_sso_callback, name='user-sso-callback'),
-    ]
-else:
-    urlpatterns += [
-        # Authentication
-        path('user/login/', views.user_login, name='user-login'),
-        path('user/signup/', views.user_signup, name='user-signup'),
-    ]
-
-urlpatterns += [
+    # Authentication
+    path('user/login/', views.user_login, name='user-login'),
+    path('user/signup/', views.user_signup, name='user-signup'),
     path('user/account/', views.user_account, name='user-account'),
     path('user/account/<sub_path>', views.user_account, name='user-account-anything'),
     re_path(r'^logout/?$', views.logout, name='logout'),
@@ -41,6 +29,12 @@ urlpatterns += [
     path('api/current-user/product-tour', product_tours_api.ProductTourAPI.as_view(), name='product-tour'),
     path('api/current-user/hotkeys/', api.UserHotkeysAPI.as_view(), name='current-user-hotkeys'),
 ]
+
+if settings.OIDC_ENABLED:
+    urlpatterns += [
+        path('user/sso/login/', views.user_sso_login, name='user-sso-login'),
+        path('user/sso/callback/', views.user_sso_callback, name='user-sso-callback'),
+    ]
 
 # When CLOUD_FILE_STORAGE_ENABLED is set, avatars are uploaded to cloud storage with a different URL pattern.
 # This local serving pattern is unnecessary for environments with cloud storage enabled.
