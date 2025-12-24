@@ -15,9 +15,21 @@ router.register(r'users', api.UserAPI, basename='user')
 
 urlpatterns = [
     re_path(r'^api/', include(router.urls)),
-    # Authentication
-    path('user/login/', views.user_login, name='user-login'),
-    path('user/signup/', views.user_signup, name='user-signup'),
+]
+
+if settings.OIDC_ENABLED:
+    urlpatterns += [
+        path('user/sso/login/', views.user_sso_login, name='user-sso-login'),
+        path('user/sso/callback/', views.user_sso_callback, name='user-sso-callback'),
+    ]
+else:
+    urlpatterns += [
+        # Authentication
+        path('user/login/', views.user_login, name='user-login'),
+        path('user/signup/', views.user_signup, name='user-signup'),
+    ]
+
+urlpatterns += [
     path('user/account/', views.user_account, name='user-account'),
     path('user/account/<sub_path>', views.user_account, name='user-account-anything'),
     re_path(r'^logout/?$', views.logout, name='logout'),
