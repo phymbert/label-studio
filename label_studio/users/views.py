@@ -197,9 +197,33 @@ def user_sso_callback(request):
     if not settings.OIDC_ENABLED:
         return redirect('user-login')
 
+    def _restart_oidc_login(reason_message):
+        logger.warning('Restarting OIDC login flow: %s', reason_message)
+        oidc = OIDCClient()
+        try:
+            retry_next = resolve_next_page(request, get_default_next_page(request.user))
+            auth_url = oidc.build_auth_url(request, retry_next)
+            return redirect(auth_url)
+        except Exception:
+            logger.exception('Failed to restart OIDC login flow after: %s', reason_message)
+            return render(
+                request,
+                'users/user_login.html',
+                {
+                    'form': forms.LoginForm(),
+                    'next': quote(get_default_next_page(request.user)),
+                    'oidc_error': 'We could not start Single Sign-On. Please try again.',
+                },
+            )
+
     state = request.GET.get('state')
     code = request.GET.get('code')
     stored_state = request.session.get('oidc_state')
+    if not code:
+        request.session.pop('oidc_state', None)
+        request.session.pop('oidc_next', None)
+        return _restart_oidc_login('Missing authorization code in callback')
+
     if not state or not stored_state or state != stored_state:
         logger.warning(
             'OIDC state mismatch or missing state on callback',
@@ -211,22 +235,7 @@ def user_sso_callback(request):
         )
         request.session.pop('oidc_state', None)
         request.session.pop('oidc_next', None)
-        oidc = OIDCClient()
-        try:
-            retry_next = get_default_next_page(request.user)
-            auth_url = oidc.build_auth_url(request, retry_next)
-            return redirect(auth_url)
-        except Exception as exc:
-            logger.exception('Failed to restart OIDC login after state mismatch.')
-            return render(
-                request,
-                'users/user_login.html',
-                {
-                    'form': forms.LoginForm(),
-                    'next': quote(get_default_next_page(request.user)),
-                    'oidc_error': 'Invalid login state. Please try again.',
-                },
-            )
+        return _restart_oidc_login('State mismatch or missing state')
 
     oidc = OIDCClient()
     try:
