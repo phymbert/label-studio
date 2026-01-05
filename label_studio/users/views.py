@@ -201,15 +201,32 @@ def user_sso_callback(request):
     code = request.GET.get('code')
     stored_state = request.session.get('oidc_state')
     if not state or not stored_state or state != stored_state:
-        return render(
-            request,
-            'users/user_login.html',
-            {
-                'form': forms.LoginForm(),
-                'next': quote(get_default_next_page(request.user)),
-                'oidc_error': 'Invalid login state. Please try again.',
+        logger.warning(
+            'OIDC state mismatch or missing state on callback',
+            extra={
+                'provided_state': state,
+                'stored_state_present': stored_state is not None,
+                'path': request.path,
             },
         )
+        request.session.pop('oidc_state', None)
+        request.session.pop('oidc_next', None)
+        oidc = OIDCClient()
+        try:
+            retry_next = get_default_next_page(request.user)
+            auth_url = oidc.build_auth_url(request, retry_next)
+            return redirect(auth_url)
+        except Exception as exc:
+            logger.exception('Failed to restart OIDC login after state mismatch.')
+            return render(
+                request,
+                'users/user_login.html',
+                {
+                    'form': forms.LoginForm(),
+                    'next': quote(get_default_next_page(request.user)),
+                    'oidc_error': 'Invalid login state. Please try again.',
+                },
+            )
 
     oidc = OIDCClient()
     try:
