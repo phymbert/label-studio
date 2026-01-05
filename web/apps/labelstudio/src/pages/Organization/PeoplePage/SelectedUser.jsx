@@ -4,6 +4,7 @@ import { IconCross } from "@humansignal/icons";
 import { Userpic, Button } from "@humansignal/ui";
 import { cn } from "../../../utils/bem";
 import "./SelectedUser.scss";
+import { useEffect, useState } from "react";
 
 const UserProjectsLinks = ({ projects }) => {
   return (
@@ -22,13 +23,14 @@ const UserProjectsLinks = ({ projects }) => {
   );
 };
 
-export const SelectedUser = ({ user, onClose }) => {
+export const SelectedUser = ({ user, onClose, onRoleChange, isSuperUser, roleOptions }) => {
   const fullName = [user.first_name, user.last_name]
     .filter((n) => !!n)
     .join(" ")
     .trim();
+  const [role, setRole] = useState(user.role ?? "RO");
   const roleLabel = (() => {
-    switch (user.role) {
+    switch (role) {
       case "OW":
         return "Owner";
       case "AD":
@@ -47,6 +49,10 @@ export const SelectedUser = ({ user, onClose }) => {
         return "Member";
     }
   })();
+
+  useEffect(() => {
+    setRole(user.role ?? "RO");
+  }, [user.role]);
 
   return (
     <div className={cn("user-info").toClassName()}>
@@ -67,6 +73,25 @@ export const SelectedUser = ({ user, onClose }) => {
           <div className={cn("user-info").elem("role").toClassName()} aria-label="User role">
             {roleLabel}
           </div>
+          {isSuperUser && (
+            <div className={cn("user-info").elem("role-editor").toClassName()}>
+              <select value={role} onChange={(e) => setRole(e.target.value)} aria-label="Change user role">
+                {roleOptions?.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <Button
+                size="small"
+                onClick={() => onRoleChange?.(role)}
+                aria-label="Save user role"
+                className="ml-2"
+              >
+                Save role
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 

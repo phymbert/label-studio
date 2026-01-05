@@ -19,7 +19,7 @@ const ROLE_LABELS = {
   DI: "Deactivated",
 };
 
-export const PeopleList = ({ onSelect, selectedUser, defaultSelected }) => {
+export const PeopleList = ({ onSelect, selectedUser, defaultSelected, reloadToken }) => {
   const api = useAPI();
   const [usersList, setUsersList] = useState();
   const [currentPage] = usePage("page", 1);
@@ -64,7 +64,7 @@ export const PeopleList = ({ onSelect, selectedUser, defaultSelected }) => {
 
   useEffect(() => {
     fetchUsers(currentPage, currentPageSize);
-  }, [fetchUsers, currentPage, currentPageSize]);
+  }, [fetchUsers, currentPage, currentPageSize, reloadToken]);
 
   useEffect(() => {
     if (isDefined(defaultSelected) && usersList) {

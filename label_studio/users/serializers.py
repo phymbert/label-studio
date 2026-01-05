@@ -15,6 +15,7 @@ class BaseUserSerializer(FlexFieldsModelSerializer):
     active_organization_meta = serializers.SerializerMethodField(read_only=True)
     last_activity = serializers.DateTimeField(read_only=True, source='last_activity_cached')
     role = serializers.SerializerMethodField(read_only=True)
+    is_superuser = serializers.BooleanField(read_only=True)
 
     def get_avatar(self, instance):
         return instance.avatar_url
@@ -105,6 +106,7 @@ class BaseUserSerializer(FlexFieldsModelSerializer):
             'active_organization',
             'active_organization_meta',
             'role',
+            'is_superuser',
             'allow_newsletters',
             'date_joined',
         )
