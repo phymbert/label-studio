@@ -57,11 +57,11 @@ export const MembershipInfo = () => {
         case "RE":
           role = "Reviewer";
           break;
-        case "OP":
-          role = "Operator";
+        case "AN":
+          role = "Annotator";
           break;
-        case "VA":
-          role = "Validator";
+        case "RE":
+          role = "Reviewer";
           break;
         case "RO":
           role = "Read only";

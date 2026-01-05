@@ -33,10 +33,10 @@ export const SelectedUser = ({ user, onClose }) => {
         return "Owner";
       case "AD":
         return "Administrator";
-      case "OP":
-        return "Operator";
-      case "VA":
-        return "Validator";
+      case "AN":
+        return "Annotator";
+      case "RE":
+        return "Reviewer";
       case "RO":
         return "Read only";
       case "NO":

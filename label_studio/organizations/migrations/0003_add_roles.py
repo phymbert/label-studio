@@ -39,8 +39,8 @@ class Migration(migrations.Migration):
                 choices=[
                     ('OW', 'Owner'),
                     ('AD', 'Administrator'),
-                    ('OP', 'Operator'),
-                    ('VA', 'Validator'),
+                    ('AN', 'Annotator'),
+                    ('RE', 'Reviewer'),
                     ('RO', 'Read Only'),
                     ('NO', 'Not Activated'),
                     ('DI', 'Deactivated'),
@@ -58,8 +58,8 @@ class Migration(migrations.Migration):
                 choices=[
                     ('OW', 'Owner'),
                     ('AD', 'Administrator'),
-                    ('OP', 'Operator'),
-                    ('VA', 'Validator'),
+                    ('AN', 'Annotator'),
+                    ('RE', 'Reviewer'),
                     ('RO', 'Read Only'),
                     ('NO', 'Not Activated'),
                     ('DI', 'Deactivated'),

@@ -18,15 +18,15 @@ OrganizationMemberMixin = load_func(settings.ORGANIZATION_MEMBER_MIXIN)
 class OrganizationRole(models.TextChoices):
     OWNER = 'OW', _('Owner')
     ADMINISTRATOR = 'AD', _('Administrator')
-    OPERATOR = 'OP', _('Operator')
-    VALIDATOR = 'VA', _('Validator')
+    ANNOTATOR = 'AN', _('Annotator')
+    REVIEWER = 'RE', _('Reviewer')
     READ_ONLY = 'RO', _('Read Only')
     NOT_ACTIVATED = 'NO', _('Not Activated')
     DEACTIVATED = 'DI', _('Deactivated')
 
     @classmethod
     def active_roles(cls):
-        return [cls.OWNER, cls.ADMINISTRATOR, cls.OPERATOR, cls.VALIDATOR, cls.READ_ONLY]
+        return [cls.OWNER, cls.ADMINISTRATOR, cls.ANNOTATOR, cls.REVIEWER, cls.READ_ONLY]
 
     @classmethod
     def superuser_roles(cls):

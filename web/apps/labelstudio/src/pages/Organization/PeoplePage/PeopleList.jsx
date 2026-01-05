@@ -12,8 +12,8 @@ import { CopyableTooltip } from "../../../components/CopyableTooltip/CopyableToo
 const ROLE_LABELS = {
   OW: "Owner",
   AD: "Administrator",
-  OP: "Operator",
-  VA: "Validator",
+  AN: "Annotator",
+  RE: "Reviewer",
   RO: "Read only",
   NO: "Not activated",
   DI: "Deactivated",
