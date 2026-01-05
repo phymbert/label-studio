@@ -78,6 +78,31 @@ class OrganizationMemberSerializer(DynamicFieldsMixin, serializers.ModelSerializ
         fields = ['user', 'organization', 'role', 'contributed_projects_count', 'annotations_count', 'created_at']
 
 
+class OrganizationMemberWriteSerializer(serializers.ModelSerializer):
+    role = serializers.ChoiceField(choices=OrganizationMember._meta.get_field('role').choices)
+
+    class Meta:
+        model = OrganizationMember
+        fields = ['user', 'role']
+
+    def validate(self, attrs):
+        organization = self.context['organization']
+        user = attrs.get('user', getattr(self.instance, 'user', None))
+        if user is None:
+            return attrs
+
+        existing = OrganizationMember.objects.filter(
+            organization=organization, user=user, deleted_at__isnull=True
+        ).exclude(pk=getattr(self.instance, 'pk', None))
+        if existing.exists():
+            raise serializers.ValidationError('User is already a member of this organization.')
+        return attrs
+
+    def create(self, validated_data):
+        organization = self.context['organization']
+        return OrganizationMember.objects.create(organization=organization, **validated_data)
+
+
 class OrganizationInviteSerializer(serializers.Serializer):
     token = serializers.CharField(required=False)
     invite_url = serializers.CharField(required=False)

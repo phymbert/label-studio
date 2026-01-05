@@ -168,6 +168,7 @@
 	email: "{{user.email}}",
 	customHotkeys: __customHotkeys,
       role: "{{ user.role|default_if_none:\"\" }}",
+      is_superuser: {{ user.is_superuser|yesno:"true,false" }},
 
       allow_newsletters: {% if user.allow_newsletters is None %}null{% else %}{{user.allow_newsletters|yesno:"true,false"}}{% endif %},
       {% if user.avatar %}
