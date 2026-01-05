@@ -243,7 +243,7 @@ def user_sso_callback(request):
         access_token = token_response.get('access_token')
         if not access_token:
             raise OIDCAuthenticationError('Missing access token in token response.')
-        userinfo = oidc.fetch_userinfo(access_token)
+        userinfo = oidc.fetch_userinfo(access_token, token_response.get('id_token'))
         userinfo = oidc.validate_userinfo(userinfo)
     except (OIDCAuthenticationError, OIDCConfigurationError, requests.RequestException) as exc:
         logger.warning('OIDC authentication failed: %s', exc)
@@ -260,20 +260,24 @@ def user_sso_callback(request):
     email = userinfo[settings.OIDC_CLAIM_EMAIL].lower()
     first_name = userinfo.get(settings.OIDC_CLAIM_GIVEN_NAME, '')
     last_name = userinfo.get(settings.OIDC_CLAIM_FAMILY_NAME, '')
+    username = str(userinfo.get('sub', email.split('@')[0]))
 
     user_model = get_user_model()
     user, created = user_model.objects.get_or_create(
-        email=email, defaults={'username': email.split('@')[0], 'first_name': first_name, 'last_name': last_name}
+        email=email, defaults={'username': username, 'first_name': first_name, 'last_name': last_name}
     )
     if created:
         user.set_unusable_password()
         user.save()
     else:
         update_fields = []
-        if first_name and user.first_name != first_name:
+        if user.username != username:
+            user.username = username
+            update_fields.append('username')
+        if user.first_name != first_name:
             user.first_name = first_name
             update_fields.append('first_name')
-        if last_name and user.last_name != last_name:
+        if user.last_name != last_name:
             user.last_name = last_name
             update_fields.append('last_name')
         if update_fields:
