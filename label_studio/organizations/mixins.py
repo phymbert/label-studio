@@ -9,6 +9,12 @@ class OrganizationMixin:
 
 class OrganizationMemberMixin:
     def has_permission(self, user):
-        if user.active_organization_id == self.organization_id:
-            return True
-        return False
+        from organizations.models import OrganizationRole
+
+        if user.active_organization_id != self.organization_id:
+            return False
+
+        if self.deleted_at is not None:
+            return False
+
+        return self.role in OrganizationRole.active_roles()
