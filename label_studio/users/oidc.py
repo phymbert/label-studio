@@ -104,9 +104,13 @@ class OIDCClient:
         return response.json()
 
     def validate_userinfo(self, userinfo: Dict) -> Dict:
+        logger.debug('OIDC userinfo received: %s', userinfo)
+
         email = userinfo.get(settings.OIDC_CLAIM_EMAIL)
         if not email:
-            raise OIDCAuthenticationError('Email is required from the identity provider.')
+            raise OIDCAuthenticationError(
+                f'Email is required from the identity provider. Claims present: {", ".join(userinfo.keys())}'
+            )
 
         domain_allowed = self._email_domain_allowed(email)
         if not domain_allowed:
@@ -115,7 +119,10 @@ class OIDCClient:
         if settings.OIDC_CLAIMS_GROUP:
             group_claim = userinfo.get(settings.OIDC_CLAIMS_GROUP)
             if not group_claim:
-                raise OIDCAuthenticationError('Required group claim is missing.')
+                raise OIDCAuthenticationError(
+                    f'Required group claim "{settings.OIDC_CLAIMS_GROUP}" is missing. '
+                    f'Claims present: {", ".join(userinfo.keys())}'
+                )
             if settings.OIDC_ALLOWED_GROUPS and not self._is_group_allowed(group_claim, settings.OIDC_ALLOWED_GROUPS):
                 raise OIDCAuthenticationError('User is not a member of an allowed group.')
 
