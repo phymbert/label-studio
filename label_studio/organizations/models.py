@@ -15,11 +15,37 @@ logger = logging.getLogger(__name__)
 OrganizationMemberMixin = load_func(settings.ORGANIZATION_MEMBER_MIXIN)
 
 
+class OrganizationRole(models.TextChoices):
+    OWNER = 'OW', _('Owner')
+    ADMINISTRATOR = 'AD', _('Administrator')
+    OPERATOR = 'OP', _('Operator')
+    VALIDATOR = 'VA', _('Validator')
+    READ_ONLY = 'RO', _('Read Only')
+    NOT_ACTIVATED = 'NO', _('Not Activated')
+    DEACTIVATED = 'DI', _('Deactivated')
+
+    @classmethod
+    def active_roles(cls):
+        return [cls.OWNER, cls.ADMINISTRATOR, cls.OPERATOR, cls.VALIDATOR, cls.READ_ONLY]
+
+    @classmethod
+    def superuser_roles(cls):
+        return [cls.OWNER, cls.ADMINISTRATOR]
+
+
 class OrganizationMember(OrganizationMemberMixin, models.Model):
-    """ """
+    """Organization members connect users to organizations with role metadata."""
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='om_through', help_text='User ID'
+    )
+
+    role = models.CharField(
+        _('role'),
+        max_length=3,
+        choices=OrganizationRole.choices,
+        default=OrganizationRole.READ_ONLY,
+        help_text='Organization membership role',
     )
     organization = models.ForeignKey(
         'organizations.Organization', on_delete=models.CASCADE, help_text='Organization ID'
@@ -54,6 +80,14 @@ class OrganizationMember(OrganizationMemberMixin, models.Model):
     @cached_property
     def is_owner(self):
         return self.user.id == self.organization.created_by.id
+
+    @property
+    def is_superuser(self):
+        return self.role in OrganizationRole.superuser_roles()
+
+    @property
+    def role_display(self):
+        return OrganizationRole(self.role).label
 
     class Meta:
         ordering = ['pk']
@@ -98,6 +132,14 @@ class Organization(OrganizationMixin, models.Model):
 
     contact_info = models.EmailField(_('contact info'), blank=True, null=True)
 
+    default_role = models.CharField(
+        _('default role'),
+        max_length=3,
+        choices=OrganizationRole.choices,
+        default=OrganizationRole.READ_ONLY,
+        help_text='Default membership role for invited users',
+    )
+
     def __str__(self):
         return self.title + ', id=' + str(self.pk)
 
@@ -135,7 +177,12 @@ class Organization(OrganizationMixin, models.Model):
         return self.projects.filter(members__user=user).exists()
 
     def has_permission(self, user):
-        return OrganizationMember.objects.filter(user=user, organization=self, deleted_at__isnull=True).exists()
+        return OrganizationMember.objects.filter(
+            user=user,
+            organization=self,
+            deleted_at__isnull=True,
+            role__in=OrganizationRole.active_roles(),
+        ).exists()
 
     def add_user(self, user):
         if self.users.filter(pk=user.pk).exists():
@@ -143,7 +190,7 @@ class Organization(OrganizationMixin, models.Model):
             return
 
         with transaction.atomic():
-            om = OrganizationMember(user=user, organization=self)
+            om = OrganizationMember(user=user, organization=self, role=self.default_role)
             om.save()
 
             return om

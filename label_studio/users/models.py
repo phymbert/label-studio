@@ -198,6 +198,13 @@ class User(UserMixin, AbstractBaseUser, PermissionsMixin, UserLastActivityMixin)
         super().clean()
         self.email = self.__class__.objects.normalize_email(self.email)
 
+    @property
+    def role(self):
+        membership = self.om_through.filter(
+            organization_id=self.active_organization_id, deleted_at__isnull=True
+        ).first()
+        return membership.role if membership else None
+
     def name_or_email(self):
         name = self.get_full_name()
         if len(name) == 0:

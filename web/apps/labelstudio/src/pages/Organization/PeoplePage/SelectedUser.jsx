@@ -27,6 +27,26 @@ export const SelectedUser = ({ user, onClose }) => {
     .filter((n) => !!n)
     .join(" ")
     .trim();
+  const roleLabel = (() => {
+    switch (user.role) {
+      case "OW":
+        return "Owner";
+      case "AD":
+        return "Administrator";
+      case "OP":
+        return "Operator";
+      case "VA":
+        return "Validator";
+      case "RO":
+        return "Read only";
+      case "NO":
+        return "Not activated";
+      case "DI":
+        return "Deactivated";
+      default:
+        return "Member";
+    }
+  })();
 
   return (
     <div className={cn("user-info").toClassName()}>
@@ -44,6 +64,9 @@ export const SelectedUser = ({ user, onClose }) => {
         <div className={cn("user-info").elem("info-wrapper").toClassName()}>
           {fullName && <div className={cn("user-info").elem("full-name").toClassName()}>{fullName}</div>}
           <p className={cn("user-info").elem("email").toClassName()}>{user.email}</p>
+          <div className={cn("user-info").elem("role").toClassName()} aria-label="User role">
+            {roleLabel}
+          </div>
         </div>
       </div>
 
