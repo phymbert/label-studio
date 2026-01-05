@@ -15,7 +15,7 @@
 {% block user_content %}
   {% if settings.OIDC_ENABLED %}
     <div class="form-wrapper">
-      <h2>Single Sign-On</h2>
+      <h2>Log in</h2>
       <form id="sso-login-form" action="{% url 'user-sso-login' %}" method="get">
         <input type="hidden" name="next" value="{{ next }}">
         <div class="form-group">
@@ -27,7 +27,7 @@
             {{ oidc_error }}
           </p>
         {% endif %}
-        <button type="submit" aria-label="Log In" class="login-button">Login with SSO</button>
+        <button type="submit" aria-label="Log In" class="login-button primary">Login with SSO</button>
       </form>
     </div>
   {% else %}
