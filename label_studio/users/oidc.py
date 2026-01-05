@@ -92,16 +92,46 @@ class OIDCClient:
         if response.status_code >= 400:
             logger.error('OIDC token exchange failed: %s', response.text)
             raise OIDCAuthenticationError('Failed to exchange authorization code for token.')
-        return response.json()
+        token_response = response.json()
+        logger.debug(
+            'OIDC token exchange successful: access_token=%s id_token=%s',
+            token_response.get('access_token'),
+            token_response.get('id_token'),
+        )
+        return token_response
 
-    def fetch_userinfo(self, access_token: str) -> Dict:
+    def _extract_claims_from_id_token(self, id_token: str) -> Dict:
+        try:
+            import jwt  # PyJWT
+        except ImportError as exc:  # pragma: no cover
+            logger.warning('PyJWT is not installed; cannot decode id_token: %s', exc)
+            return {}
+
+        if not id_token:
+            return {}
+
+        try:
+            claims = jwt.decode(id_token, options={'verify_signature': False, 'verify_aud': False})
+            logger.debug('Decoded id_token claims: %s', claims)
+            return claims or {}
+        except Exception as exc:  # pragma: no cover
+            logger.warning('Failed to decode id_token: %s', exc)
+            return {}
+
+    def fetch_userinfo(self, access_token: str, id_token: str = None) -> Dict:
         userinfo_endpoint = self._get_endpoint('userinfo_endpoint')
         headers = {'Authorization': f'Bearer {access_token}'}
         response = requests.get(userinfo_endpoint, headers=headers, timeout=settings.OIDC_TIMEOUT)
         if response.status_code >= 400:
             logger.error('OIDC userinfo request failed: %s', response.text)
             raise OIDCAuthenticationError('Failed to fetch user information from provider.')
-        return response.json()
+        userinfo = response.json() or {}
+        id_token_claims = self._extract_claims_from_id_token(id_token)
+
+        # Merge id_token claims when userinfo is missing required fields
+        merged = {**id_token_claims, **userinfo}
+        logger.debug('Merged userinfo with id_token claims: %s', merged)
+        return merged
 
     def validate_userinfo(self, userinfo: Dict) -> Dict:
         logger.debug('OIDC userinfo received: %s', userinfo)

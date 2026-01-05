@@ -243,7 +243,7 @@ def user_sso_callback(request):
         access_token = token_response.get('access_token')
         if not access_token:
             raise OIDCAuthenticationError('Missing access token in token response.')
-        userinfo = oidc.fetch_userinfo(access_token)
+        userinfo = oidc.fetch_userinfo(access_token, token_response.get('id_token'))
         userinfo = oidc.validate_userinfo(userinfo)
     except (OIDCAuthenticationError, OIDCConfigurationError, requests.RequestException) as exc:
         logger.warning('OIDC authentication failed: %s', exc)
