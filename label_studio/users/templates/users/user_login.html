@@ -11,10 +11,17 @@
         </label>
       </p>
       {% if oidc_error %}
-        <p class="error">{{ oidc_error }}</p>
+        <p class="error" style="text-align: left;">{{ oidc_error }}</p>
       {% endif %}
       <p style="text-align: center; margin-top: 16px;">
-        <button type="submit" aria-label="Log in with SSO" class="lsf-button-ls lsf-button-ls_look_primary" style="width: 100%;">Login with SSO</button>
+        <button
+          type="submit"
+          aria-label="Log in with SSO"
+          class="lsf-button-ls lsf-button-ls_look_primary"
+          style="width: 100%; padding: 10px 16px;"
+        >
+          Login with SSO
+        </button>
       </p>
     </form>
   {% else %}
