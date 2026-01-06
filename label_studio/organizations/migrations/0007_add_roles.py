@@ -28,7 +28,7 @@ def set_default_roles(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('organizations', '0002_auto_20210310_2044'),
+        ('organizations', '0006_alter_organizationmember_deleted_at'),
     ]
 
     operations = [
