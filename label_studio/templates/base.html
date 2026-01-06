@@ -167,7 +167,7 @@
       initials: "{{user.get_initials}}",
 	email: "{{user.email}}",
 	customHotkeys: __customHotkeys,
-      role: "{{ user.role|default:\"\"|default_if_none:\"\" }}",
+      role: "{{ user.role }}",
       is_superuser: {{ user.is_superuser|yesno:"true,false" }},
 
       allow_newsletters: {% if user.allow_newsletters is None %}null{% else %}{{user.allow_newsletters|yesno:"true,false"}}{% endif %},
