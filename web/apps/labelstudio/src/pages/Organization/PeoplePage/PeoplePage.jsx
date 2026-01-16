@@ -38,6 +38,8 @@ export const PeoplePage = () => {
   const [newUserRole, setNewUserRole] = useState("RO");
   const organizationId = window.APP_SETTINGS?.user?.active_organization ?? 1;
   const isSuperUser = window.APP_SETTINGS?.user?.is_superuser;
+  const userRole = window.APP_SETTINGS?.user?.role;
+  const isOrgAdmin = isSuperUser || ["OW", "AD"].includes(userRole);
 
   useUpdatePageTitle("People");
 
@@ -76,7 +78,7 @@ export const PeoplePage = () => {
   }, []);
 
   const handleAddMember = async () => {
-    if (!isSuperUser) return;
+    if (!isOrgAdmin) return;
     if (!newUserId) {
       toast.show({ message: "User ID is required", type: "error" });
       return;
@@ -95,7 +97,7 @@ export const PeoplePage = () => {
   };
 
   const handleRoleChange = async (userId, role) => {
-    if (!isSuperUser) return;
+    if (!isOrgAdmin) return;
     try {
       await api.callApi("updateMembership", {
         params: { pk: organizationId, userPk: userId },
@@ -129,7 +131,7 @@ export const PeoplePage = () => {
             </Button>
           </Space>
         </Space>
-        {isSuperUser && (
+        {isOrgAdmin && (
           <div className={cn("people").elem("add-form").toClassName()}>
             <Space align="center" gap="small">
               <Input
@@ -175,7 +177,7 @@ export const PeoplePage = () => {
             user={selectedUser}
             onClose={() => selectUser(null)}
             onRoleChange={(role) => handleRoleChange(selectedUser.id, role)}
-            isSuperUser={isSuperUser}
+            canManageRoles={isOrgAdmin}
             roleOptions={ROLE_OPTIONS}
           />
         ) : (

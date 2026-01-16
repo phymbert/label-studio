@@ -11,7 +11,9 @@ class MemberHasOwnerPermission(BasePermission):
         if getattr(request.user, 'is_superuser', False):
             return True
 
-        if request.method not in SAFE_METHODS and not request.user.own_organization:
+        if request.method not in SAFE_METHODS and not request.user.is_organization_admin(
+            getattr(obj, 'organization_id', None)
+        ):
             return False
 
         return obj.has_permission(request.user)

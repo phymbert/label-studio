@@ -8,11 +8,12 @@ def set_default_roles(apps, schema_editor):
 
     ROLE_OWNER = 'OW'
     ROLE_READ_ONLY = 'RO'
+    ROLE_DEACTIVATED = 'DI'
 
     # Ensure every organization has a default role
     for org in Organization.objects.all():
         if not org.default_role:
-            org.default_role = ROLE_READ_ONLY
+            org.default_role = ROLE_DEACTIVATED
             org.save(update_fields=['default_role'])
 
         # Promote creator to owner role
@@ -22,7 +23,7 @@ def set_default_roles(apps, schema_editor):
             )
 
     # Any remaining memberships without a role should be read-only
-    OrganizationMember.objects.filter(role__isnull=True).update(role=ROLE_READ_ONLY)
+    OrganizationMember.objects.filter(role__isnull=True).update(role=ROLE_DEACTIVATED)
 
 
 class Migration(migrations.Migration):
@@ -45,7 +46,7 @@ class Migration(migrations.Migration):
                     ('NO', 'Not Activated'),
                     ('DI', 'Deactivated'),
                 ],
-                default='RO',
+                default='DI',
                 help_text='Default membership role for invited users',
                 max_length=3,
                 verbose_name='default role',
@@ -64,7 +65,7 @@ class Migration(migrations.Migration):
                     ('NO', 'Not Activated'),
                     ('DI', 'Deactivated'),
                 ],
-                default='RO',
+                default='DI',
                 help_text='Organization membership role',
                 max_length=3,
                 verbose_name='role',

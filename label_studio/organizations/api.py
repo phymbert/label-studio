@@ -197,10 +197,10 @@ class OrganizationMemberListAPI(generics.ListAPIView):
             return org.members.prefetch_related('user__om_through').order_by('user__username')
 
     def post(self, request, *args, **kwargs):
-        if not request.user.is_superuser:
-            raise PermissionDenied('Only superusers can add organization members.')
-
         organization = generics.get_object_or_404(Organization.objects.all(), pk=self.kwargs[self.lookup_field])
+        if not request.user.is_organization_admin(organization.pk):
+            raise PermissionDenied('Only organization administrators can add organization members.')
+
         serializer = OrganizationMemberWriteSerializer(data=request.data, context={'organization': organization})
         serializer.is_valid(raise_exception=True)
         member = serializer.save()
@@ -308,10 +308,10 @@ class OrganizationMemberDetailAPI(GetParentObjectMixin, generics.RetrieveDestroy
         return Response(status=204)  # 204 No Content is a common HTTP status for successful delete requests
 
     def patch(self, request, pk=None, user_pk=None):
-        if not request.user.is_superuser:
-            raise PermissionDenied('Only superusers can change member roles.')
-
         org = self.parent_object
+        if not request.user.is_organization_admin(org.pk):
+            raise PermissionDenied('Only organization administrators can change member roles.')
+
         user = get_object_or_404(User, pk=user_pk)
         member = get_object_or_404(OrganizationMember, user=user, organization=org)
         serializer = OrganizationMemberWriteSerializer(
@@ -363,10 +363,14 @@ class OrganizationAPI(generics.RetrieveUpdateAPIView):
         return super(OrganizationAPI, self).get(request, *args, **kwargs)
 
     def patch(self, request, *args, **kwargs):
+        if not request.user.is_organization_admin(self.get_object().pk):
+            raise PermissionDenied('Only organization administrators can update organization settings.')
         return super(OrganizationAPI, self).patch(request, *args, **kwargs)
 
     @extend_schema(exclude=True)
     def put(self, request, *args, **kwargs):
+        if not request.user.is_organization_admin(self.get_object().pk):
+            raise PermissionDenied('Only organization administrators can update organization settings.')
         return super(OrganizationAPI, self).put(request, *args, **kwargs)
 
 

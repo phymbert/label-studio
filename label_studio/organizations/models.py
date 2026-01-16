@@ -44,7 +44,7 @@ class OrganizationMember(OrganizationMemberMixin, models.Model):
         _('role'),
         max_length=3,
         choices=OrganizationRole.choices,
-        default=OrganizationRole.READ_ONLY,
+        default=OrganizationRole.DEACTIVATED,
         help_text='Organization membership role',
     )
     organization = models.ForeignKey(
@@ -136,7 +136,7 @@ class Organization(OrganizationMixin, models.Model):
         _('default role'),
         max_length=3,
         choices=OrganizationRole.choices,
-        default=OrganizationRole.READ_ONLY,
+        default=OrganizationRole.DEACTIVATED,
         help_text='Default membership role for invited users',
     )
 
@@ -177,6 +177,9 @@ class Organization(OrganizationMixin, models.Model):
         return self.projects.filter(members__user=user).exists()
 
     def has_permission(self, user):
+        if getattr(user, 'is_superuser', False):
+            return True
+
         return OrganizationMember.objects.filter(
             user=user,
             organization=self,

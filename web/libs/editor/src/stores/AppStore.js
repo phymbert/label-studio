@@ -328,6 +328,12 @@ export default types
       // important thing to detect Area atomatically: it hasn't access to store, only via global
       window.Htx = self;
 
+      const userRole = window.APP_SETTINGS?.user?.role;
+      const reviewRoles = ["OW", "AD", "RE"];
+      if (reviewRoles.includes(userRole) && !self.hasInterface("review")) {
+        addInterface("review");
+      }
+
       self.attachHotkeys();
 
       getEnv(self).events.invoke("labelStudioLoad", self);

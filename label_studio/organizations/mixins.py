@@ -21,3 +21,17 @@ class OrganizationMemberMixin:
             return False
 
         return self.role in OrganizationRole.active_roles()
+
+    def has_admin_permission(self, user):
+        from organizations.models import OrganizationRole
+
+        if getattr(user, 'is_superuser', False):
+            return True
+
+        if user.active_organization_id != self.organization_id:
+            return False
+
+        if self.deleted_at is not None:
+            return False
+
+        return self.role in OrganizationRole.superuser_roles()
