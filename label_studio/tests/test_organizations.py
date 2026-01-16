@@ -47,7 +47,7 @@ def test_organization_member_retrieve_other_user_in_org(business_client):
     print(response_data)
     assert response_data['user'] == other_user.id
     assert response_data['organization'] == organization.id
-    assert response_data['role'] == 'RO'
+    assert response_data['role'] == 'DI'
     assert response_data['annotations_count'] == 0
     assert response_data['contributed_projects_count'] == 0
 

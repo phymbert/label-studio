@@ -34,13 +34,13 @@ class TestOrganizationMemberListAPI(APITestCase):
 
         user_1 = response.json()['results'][1]
         assert user_1['user']['id'] == self.user_1.id
-        assert user_1['role'] == 'RO'
+        assert user_1['role'] == 'DI'
         assert user_1['user']['created_projects'] is None
         assert user_1['user']['contributed_to_projects'] is None
 
         user_2 = response.json()['results'][2]
         assert user_2['user']['id'] == self.user_2.id
-        assert user_2['role'] == 'RO'
+        assert user_2['role'] == 'DI'
         assert user_2['user']['created_projects'] is None
         assert user_2['user']['contributed_to_projects'] is None
 

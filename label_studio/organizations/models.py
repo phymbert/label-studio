@@ -44,7 +44,7 @@ class OrganizationMember(OrganizationMemberMixin, models.Model):
         _('role'),
         max_length=3,
         choices=OrganizationRole.choices,
-        default=OrganizationRole.READ_ONLY,
+        default=OrganizationRole.DEACTIVATED,
         help_text='Organization membership role',
     )
     organization = models.ForeignKey(
@@ -136,7 +136,7 @@ class Organization(OrganizationMixin, models.Model):
         _('default role'),
         max_length=3,
         choices=OrganizationRole.choices,
-        default=OrganizationRole.READ_ONLY,
+        default=OrganizationRole.DEACTIVATED,
         help_text='Default membership role for invited users',
     )
 
