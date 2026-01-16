@@ -23,7 +23,7 @@ const UserProjectsLinks = ({ projects }) => {
   );
 };
 
-export const SelectedUser = ({ user, onClose, onRoleChange, isSuperUser, roleOptions }) => {
+export const SelectedUser = ({ user, onClose, onRoleChange, canManageRoles, roleOptions }) => {
   const fullName = [user.first_name, user.last_name]
     .filter((n) => !!n)
     .join(" ")
@@ -73,7 +73,7 @@ export const SelectedUser = ({ user, onClose, onRoleChange, isSuperUser, roleOpt
           <div className={cn("user-info").elem("role").toClassName()} aria-label="User role">
             {roleLabel}
           </div>
-          {isSuperUser && (
+          {canManageRoles && (
             <div className={cn("user-info").elem("role-editor").toClassName()}>
               <select value={role} onChange={(e) => setRole(e.target.value)} aria-label="Change user role">
                 {roleOptions?.map((option) => (

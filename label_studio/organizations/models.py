@@ -177,6 +177,9 @@ class Organization(OrganizationMixin, models.Model):
         return self.projects.filter(members__user=user).exists()
 
     def has_permission(self, user):
+        if getattr(user, 'is_superuser', False):
+            return True
+
         return OrganizationMember.objects.filter(
             user=user,
             organization=self,
