@@ -78,7 +78,12 @@ export const Controls = controlsInjector<{ annotation: MSTAnnotation }>(
 
     const [isInProgress, setIsInProgress] = useState(false);
     const disabled = !annotationEditable || store.isSubmitting || historySelected || isInProgress;
-    const submitDisabled = store.hasInterface("annotations:deny-empty") && results.length === 0;
+    const userRole = (window as any).APP_SETTINGS?.user?.role;
+    const annotateRoles = ["OW", "AD", "AN"];
+    const reviewRoles = ["OW", "AD", "RE"];
+    const annotateDisabled = !annotateRoles.includes(userRole);
+    const reviewDisabled = !reviewRoles.includes(userRole);
+    const submitDisabled = (store.hasInterface("annotations:deny-empty") && results.length === 0) || annotateDisabled;
 
     /** Check all things related to comments and then call the action if all is good */
     const handleActionWithComments = useCallback(
@@ -176,9 +181,13 @@ export const Controls = controlsInjector<{ annotation: MSTAnnotation }>(
           }
         };
 
-        buttons.push(<ControlButton key={button.name} button={button} disabled={disabled} onClick={onReject} />);
+        buttons.push(
+          <ControlButton key={button.name} button={button} disabled={disabled || reviewDisabled} onClick={onReject} />,
+        );
       });
-      buttons.push(<AcceptButton key="review-accept" disabled={disabled} history={history} store={store} />);
+      buttons.push(
+        <AcceptButton key="review-accept" disabled={disabled || reviewDisabled} history={history} store={store} />,
+      );
     } else if (annotation.skipped) {
       buttons.push(
         <div className={cn("controls").elem("skipped-info").toClassName()} key="skipped">

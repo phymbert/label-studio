@@ -198,6 +198,10 @@
     {% endblock %}
 
   }, {% block frontend_settings %}{}{% endblock %});
+
+  if (window.APP_SETTINGS?.user?.role === "DI") {
+    window.location.href = "/logout";
+  }
 </script>
 
 {% block app-js %}

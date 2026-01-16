@@ -53,13 +53,16 @@ export const AcceptButton = memo(
     const annotation = store.annotationStore.selected;
     // changes in current sessions or saved draft
     const hasChanges = history.canUndo || annotation.versions.draft;
+    const userRole = (window as any).APP_SETTINGS?.user?.role;
+    const reviewRoles = ["OW", "AD", "RE"];
+    const reviewDisabled = !reviewRoles.includes(userRole);
 
     return (
       <Button
         key="accept"
         tooltip="Accept annotation: [ Ctrl+Enter ]"
         aria-label="accept-annotation"
-        disabled={disabled}
+        disabled={disabled || reviewDisabled}
         onClick={async () => {
           annotation.submissionInProgress();
           await store.commentStore.commentFormSubmit();
