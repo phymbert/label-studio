@@ -51,6 +51,11 @@ from webhooks.utils import (
 logger = logging.getLogger(__name__)
 
 
+def _require_admin(user, organization_id, message):
+    if not user.is_organization_admin(organization_id):
+        raise PermissionDenied(message)
+
+
 # TODO: fix after switch to api/tasks from api/dm/tasks
 @method_decorator(
     name='post',
@@ -373,6 +378,8 @@ class TaskAPI(generics.RetrieveUpdateDestroyAPIView):
 
     @api_webhook_for_delete(WebhookAction.TASKS_DELETED)
     def delete(self, request, *args, **kwargs):
+        task = self.get_object()
+        _require_admin(request.user, task.project.organization_id, 'Only organization administrators can delete tasks.')
         return super(TaskAPI, self).delete(request, *args, **kwargs)
 
     @extend_schema(exclude=True)
@@ -455,6 +462,9 @@ class AnnotationAPI(generics.RetrieveUpdateDestroyAPIView):
     queryset = Annotation.objects.all()
 
     def perform_destroy(self, annotation):
+        user = self.request.user
+        if not user.is_organization_admin(annotation.project.organization_id) and annotation.completed_by_id != user.id:
+            raise PermissionDenied('Only organization administrators or the annotation author can delete annotations.')
         annotation.delete()
 
     def update(self, request, *args, **kwargs):
@@ -867,6 +877,15 @@ class PredictionAPI(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return Prediction.objects.filter(project__organization=self.request.user.active_organization)
+
+    def destroy(self, request, *args, **kwargs):
+        prediction = self.get_object()
+        _require_admin(
+            request.user,
+            prediction.project.organization_id,
+            'Only organization administrators can delete predictions.',
+        )
+        return super().destroy(request, *args, **kwargs)
 
 
 @method_decorator(name='get', decorator=extend_schema(exclude=True))
