@@ -9,6 +9,7 @@ import { useContextProps } from "../../providers/RoutesProvider";
 import { cn } from "../../utils/bem";
 import { CreateProject } from "../CreateProject/CreateProject";
 import { DataManagerPage } from "../DataManager/DataManager";
+import { ProjectDashboardPage } from "../ProjectDashboard/ProjectDashboard";
 import { SettingsPage } from "../Settings";
 import { EmptyProjectsList, ProjectsList } from "./ProjectsList";
 import { useAbortController, useUpdatePageTitle } from "@humansignal/core";
@@ -156,6 +157,7 @@ ProjectsPage.routes = ({ store }) => [
     },
     pages: {
       DataManagerPage,
+      ProjectDashboardPage,
       SettingsPage,
     },
   },

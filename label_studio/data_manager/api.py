@@ -2,6 +2,7 @@
 """
 import logging
 
+import ujson as json
 from asgiref.sync import async_to_sync, sync_to_async
 from core.feature_flags import flag_set
 from core.permissions import ViewClassPermission, all_permissions
@@ -19,7 +20,7 @@ from data_manager.serializers import (
     ViewSerializer,
 )
 from django.conf import settings
-from django.db.models import Sum
+from django.db.models import Count, Sum
 from django.db.models.functions import Coalesce
 from django.utils.decorators import method_decorator
 from django_filters.rest_framework import DjangoFilterBackend
@@ -35,6 +36,34 @@ from rest_framework.views import APIView
 from tasks.models import Annotation, Prediction, Task
 
 logger = logging.getLogger(__name__)
+
+
+def _parse_csv_ids(value):
+    if not value:
+        return []
+    if isinstance(value, (list, tuple)):
+        parts = []
+        for item in value:
+            if item:
+                parts.extend(str(item).split(','))
+    else:
+        parts = str(value).split(',')
+    ids = []
+    for part in parts:
+        if part.strip().isdigit():
+            ids.append(int(part))
+    return ids
+
+
+def _normalize_yes_no(value):
+    if not isinstance(value, str):
+        return None
+    normalized = value.strip().lower()
+    if normalized == 'yes':
+        return 'Yes'
+    if normalized == 'no':
+        return 'No'
+    return None
 
 _view_request_body = {
     'application/json': {
@@ -519,6 +548,160 @@ class ProjectStateAPI(APIView):
             }
         )
         return Response(data)
+
+
+@method_decorator(
+    name='get',
+    decorator=extend_schema(
+        tags=['Data Manager'],
+        summary='Get project dashboard stats',
+        description='Retrieve per-view task and annotation statistics for the project dashboard.',
+        parameters=[
+            OpenApiParameter(
+                name='project',
+                type=OpenApiTypes.INT,
+                location='query',
+                description='Project ID',
+                required=True,
+            ),
+            OpenApiParameter(
+                name='views',
+                type=OpenApiTypes.STR,
+                location='query',
+                description='Comma-separated view IDs to include.',
+                required=False,
+            ),
+            OpenApiParameter(
+                name='annotators',
+                type=OpenApiTypes.STR,
+                location='query',
+                description='Comma-separated annotator user IDs to include.',
+                required=False,
+            ),
+        ],
+        extensions={
+            'x-fern-audiences': ['internal'],
+        },
+    ),
+)
+class ProjectDashboardAPI(APIView):
+    permission_required = all_permissions.projects_view
+
+    def get(self, request):
+        project_id = int_from_request(request.GET, 'project', None)
+        project = generics.get_object_or_404(Project.objects.for_user(request.user), pk=project_id)
+        self.check_object_permissions(request, project)
+
+        views_raw = request.GET.get('views')
+        views_list = request.GET.getlist('views')
+        annotators_raw = request.GET.get('annotators')
+        annotators_list = request.GET.getlist('annotators')
+
+        views_requested = views_raw is not None or len(views_list) > 0
+        annotators_requested = annotators_raw is not None or len(annotators_list) > 0
+
+        view_ids = _parse_csv_ids(views_raw or views_list)
+        annotator_ids = _parse_csv_ids(annotators_raw or annotators_list)
+
+        views = View.objects.filter(project=project).order_by('order', 'id')
+        if views_requested:
+            views = views.filter(id__in=view_ids)
+
+        annotators_map = {}
+        view_stats = []
+        annotation_chart = {}
+
+        for view in views:
+            prepare_params = view.get_prepare_tasks_params()
+            prepare_params.request = request
+            task_queryset = Task.prepared.only_filtered(prepare_params=prepare_params)
+
+            annotation_queryset = Annotation.objects.filter(
+                project=project,
+                task__in=task_queryset,
+                was_cancelled=False,
+                completed_by__isnull=False,
+            )
+            if annotators_requested:
+                annotation_queryset = annotation_queryset.filter(completed_by_id__in=annotator_ids)
+
+            annotated_count = annotation_queryset.values('task_id').distinct().count()
+            annotator_breakdown = []
+            for row in annotation_queryset.values(
+                'completed_by_id',
+                'completed_by__first_name',
+                'completed_by__last_name',
+                'completed_by__email',
+            ).annotate(task_count=Count('task_id', distinct=True)):
+                full_name = f"{row['completed_by__first_name']} {row['completed_by__last_name']}".strip()
+                display_name = full_name or row['completed_by__email'] or f"User {row['completed_by_id']}"
+                annotator_breakdown.append(
+                    {
+                        'id': row['completed_by_id'],
+                        'name': display_name,
+                        'task_count': row['task_count'],
+                    }
+                )
+                annotators_map[row['completed_by_id']] = display_name
+
+            for result in annotation_queryset.values_list('result', flat=True):
+                if not result:
+                    continue
+                if isinstance(result, str):
+                    try:
+                        result = json.loads(result)
+                    except Exception:
+                        continue
+                if not isinstance(result, list):
+                    continue
+                for item in result:
+                    if item.get('type') != 'choices':
+                        continue
+                    value = item.get('value') or {}
+                    choices = value.get('choices') or []
+                    if not isinstance(choices, list):
+                        continue
+                    name = item.get('from_name') or item.get('name')
+                    if not name:
+                        continue
+                    for choice in choices:
+                        normalized = _normalize_yes_no(choice)
+                        if not normalized:
+                            continue
+                        chart_entry = annotation_chart.setdefault(name, {'Yes': 0, 'No': 0})
+                        chart_entry[normalized] += 1
+
+            view_title = None
+            if isinstance(view.data, dict):
+                view_title = view.data.get('title') or view.data.get('name')
+            view_title = view_title or f'View {view.id}'
+
+            view_stats.append(
+                {
+                    'id': view.id,
+                    'title': view_title,
+                    'task_count': task_queryset.count(),
+                    'annotated_count': annotated_count,
+                    'annotators': annotator_breakdown,
+                }
+            )
+
+        annotators = [{'id': key, 'name': value} for key, value in annotators_map.items()]
+        annotators.sort(key=lambda item: item['name'])
+
+        annotation_summary = []
+        for name, counts in annotation_chart.items():
+            annotation_summary.append(
+                {
+                    'name': name,
+                    'yes': counts['Yes'],
+                    'no': counts['No'],
+                    'total': counts['Yes'] + counts['No'],
+                }
+            )
+        annotation_summary.sort(key=lambda item: item['name'])
+
+        return Response({'views': view_stats, 'annotators': annotators, 'annotation_summary': annotation_summary})
 
 
 @method_decorator(
