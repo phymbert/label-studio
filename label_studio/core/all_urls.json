@@ -348,6 +348,12 @@
         "decorators": ""
     },
     {
+        "url": "/api/dm/dashboard/",
+        "module": "data_manager.api.ProjectDashboardAPI",
+        "name": "data_manager:dm-dashboard",
+        "decorators": ""
+    },
+    {
         "url": "/api/dm/actions/",
         "module": "data_manager.api.ProjectActionsAPI",
         "name": "data_manager:dm-actions",
@@ -381,6 +387,12 @@
         "url": "/projects/<int:pk>/data/export",
         "module": "data_manager.views.task_page",
         "name": "data_manager:project-export",
+        "decorators": ""
+    },
+    {
+        "url": "/projects/<int:pk>/dashboard",
+        "module": "data_manager.views.task_page",
+        "name": "data_manager:project-dashboard",
         "decorators": ""
     },
     {
@@ -1008,6 +1020,12 @@
         "decorators": ""
     },
     {
+        "url": "/data/local-files/",
+        "module": "io_storages.localfiles.views.localfiles_data",
+        "name": "storages:localfiles_data",
+        "decorators": ""
+    },
+    {
         "url": "/api/ml/",
         "module": "ml.api.MLBackendListAPI",
         "name": "ml:api:ml-list",
@@ -1137,12 +1155,6 @@
         "url": "/api/fsm/entities/<str:entity_name>/<int:entity_id>/transition/",
         "module": "fsm.api.FSMEntityTransitionAPI",
         "name": "fsm:fsm-entity-transition",
-        "decorators": ""
-    },
-    {
-        "url": "/data/local-files/",
-        "module": "io_storages.localfiles.views.localfiles_data",
-        "name": "storages:localfiles_data",
         "decorators": ""
     },
     {
