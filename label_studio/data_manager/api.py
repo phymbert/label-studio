@@ -602,6 +602,8 @@ class ProjectDashboardAPI(APIView):
 
         view_ids = _parse_csv_ids(views_raw or views_list)
         annotator_ids = _parse_csv_ids(annotators_raw or annotators_list)
+        if annotators_requested and not annotator_ids:
+            annotators_requested = False
 
         views = View.objects.filter(project=project).order_by('order', 'id')
         if views_requested:

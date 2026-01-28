@@ -51,6 +51,7 @@ export const ProjectDashboardPage = () => {
       setAnnotationSummary([]);
       setAnnotators([]);
       setSelectedAnnotatorIds([]);
+      setAnnotatorsRequested(false);
       setLoading(false);
       return;
     }
@@ -62,7 +63,7 @@ export const ProjectDashboardPage = () => {
         views: selectedViewIds.join(","),
       };
 
-      if (annotatorsRequested) {
+      if (annotatorsRequested && selectedAnnotatorIds.length) {
         requestParams.annotators = selectedAnnotatorIds.join(",");
       }
       const response = await api.callApi("dmDashboard", {
