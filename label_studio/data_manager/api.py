@@ -611,6 +611,14 @@ class ProjectDashboardAPI(APIView):
         view_stats = []
         annotation_chart = {}
 
+        def choice_to_label(choice):
+            if isinstance(choice, str):
+                return choice
+            try:
+                return json.dumps(choice, ensure_ascii=False)
+            except Exception:
+                return str(choice)
+
         for view in views:
             prepare_params = view.get_prepare_tasks_params()
             prepare_params.request = request
@@ -622,12 +630,13 @@ class ProjectDashboardAPI(APIView):
                 was_cancelled=False,
                 completed_by__isnull=False,
             )
+            annotators_queryset = annotation_queryset
             if annotators_requested:
                 annotation_queryset = annotation_queryset.filter(completed_by_id__in=annotator_ids)
 
             annotated_count = annotation_queryset.values('task_id').distinct().count()
             annotator_breakdown = []
-            for row in annotation_queryset.values(
+            for row in annotators_queryset.values(
                 'completed_by_id',
                 'completed_by__first_name',
                 'completed_by__last_name',
@@ -665,11 +674,13 @@ class ProjectDashboardAPI(APIView):
                     if not name:
                         continue
                     for choice in choices:
-                        normalized = _normalize_yes_no(choice)
-                        if not normalized:
+                        if choice is None:
                             continue
-                        chart_entry = annotation_chart.setdefault(name, {'Yes': 0, 'No': 0})
-                        chart_entry[normalized] += 1
+                        choice_label = choice_to_label(choice)
+                        if not choice_label:
+                            continue
+                        chart_entry = annotation_chart.setdefault(name, {})
+                        chart_entry[choice_label] = chart_entry.get(choice_label, 0) + 1
 
             view_title = None
             if isinstance(view.data, dict):
@@ -691,14 +702,10 @@ class ProjectDashboardAPI(APIView):
 
         annotation_summary = []
         for name, counts in annotation_chart.items():
-            annotation_summary.append(
-                {
-                    'name': name,
-                    'yes': counts['Yes'],
-                    'no': counts['No'],
-                    'total': counts['Yes'] + counts['No'],
-                }
-            )
+            choices = [{'value': value, 'count': count} for value, count in counts.items()]
+            choices.sort(key=lambda item: item['value'])
+            total = sum(item['count'] for item in choices)
+            annotation_summary.append({'name': name, 'total': total, 'choices': choices})
         annotation_summary.sort(key=lambda item: item['name'])
 
         return Response({'views': view_stats, 'annotators': annotators, 'annotation_summary': annotation_summary})
