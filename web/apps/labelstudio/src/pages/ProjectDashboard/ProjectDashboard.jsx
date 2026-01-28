@@ -21,10 +21,12 @@ export const ProjectDashboardPage = () => {
   const [selectedViewIds, setSelectedViewIds] = useState([]);
   const [annotators, setAnnotators] = useState([]);
   const [selectedAnnotatorIds, setSelectedAnnotatorIds] = useState([]);
+  const [annotatorsRequested, setAnnotatorsRequested] = useState(false);
   const [dashboardData, setDashboardData] = useState([]);
   const [annotationSummary, setAnnotationSummary] = useState([]);
   const [hoveredViewId, setHoveredViewId] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [hoveredAnnotationName, setHoveredAnnotationName] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!projectId) return;
@@ -37,7 +39,6 @@ export const ProjectDashboardPage = () => {
       const sortedViews = (response ?? []).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
       setViews(sortedViews);
-      setSelectedViewIds((prev) => (prev.length ? prev : sortedViews.map((view) => view.id)));
     };
 
     fetchViews();
@@ -45,15 +46,27 @@ export const ProjectDashboardPage = () => {
 
   useEffect(() => {
     if (!projectId) return;
+    if (!selectedViewIds.length) {
+      setDashboardData([]);
+      setAnnotationSummary([]);
+      setAnnotators([]);
+      setSelectedAnnotatorIds([]);
+      setLoading(false);
+      return;
+    }
 
     const fetchDashboard = async () => {
       setLoading(true);
+      const requestParams = {
+        project: projectId,
+        views: selectedViewIds.join(","),
+      };
+
+      if (annotatorsRequested) {
+        requestParams.annotators = selectedAnnotatorIds.join(",");
+      }
       const response = await api.callApi("dmDashboard", {
-        params: {
-          project: projectId,
-          views: selectedViewIds.join(","),
-          annotators: selectedAnnotatorIds.join(","),
-        },
+        params: requestParams,
       });
 
       setDashboardData(response?.views ?? []);
@@ -63,7 +76,7 @@ export const ProjectDashboardPage = () => {
         if (!response?.annotators?.length) return prev.length ? [] : prev;
         const availableIds = new Set(response.annotators.map((annotator) => annotator.id));
         const filtered = prev.filter((id) => availableIds.has(id));
-        if (!filtered.length) {
+        if (!annotatorsRequested && !filtered.length) {
           return response.annotators.map((annotator) => annotator.id);
         }
         return filtered;
@@ -72,7 +85,13 @@ export const ProjectDashboardPage = () => {
     };
 
     fetchDashboard();
-  }, [api, projectId, selectedAnnotatorIds.join(","), selectedViewIds.join(",")]);
+  }, [
+    api,
+    projectId,
+    annotatorsRequested,
+    selectedAnnotatorIds.join(","),
+    selectedViewIds.join(","),
+  ]);
 
   const maxTasks = useMemo(() => {
     return Math.max(...dashboardData.map((view) => view.task_count), 1);
@@ -97,6 +116,24 @@ export const ProjectDashboardPage = () => {
   const handleBarClick = (viewId) => {
     history.push(`/projects/${projectId}/data?view=${viewId}`);
   };
+
+  const handleAnnotatorToggle = (id) => {
+    setAnnotatorsRequested(true);
+    toggleSelection(id, setSelectedAnnotatorIds);
+  };
+
+  const handleAnnotatorToggleAll = () => {
+    setAnnotatorsRequested(true);
+    toggleAll(
+      annotators.map((annotator) => annotator.id),
+      selectedAnnotatorIds,
+      setSelectedAnnotatorIds,
+    );
+  };
+
+  const hasSelectedViews = selectedViewIds.length > 0;
+
+  const chartColors = ["#22c55e", "#2563eb", "#f97316", "#a855f7", "#ec4899", "#f59e0b"];
 
   return (
     <div className={dashboardClass.toClassName()}>
@@ -140,11 +177,7 @@ export const ProjectDashboardPage = () => {
             <h3>Annotators</h3>
             <Checkbox
               checked={selectedAnnotatorIds.length === annotators.length && annotators.length > 0}
-              onChange={() => toggleAll(
-                annotators.map((annotator) => annotator.id),
-                selectedAnnotatorIds,
-                setSelectedAnnotatorIds,
-              )}
+              onChange={handleAnnotatorToggleAll}
             >
               Select all
             </Checkbox>
@@ -154,7 +187,7 @@ export const ProjectDashboardPage = () => {
               <Checkbox
                 key={annotator.id}
                 checked={selectedAnnotatorIds.includes(annotator.id)}
-                onChange={() => toggleSelection(annotator.id, setSelectedAnnotatorIds)}
+                onChange={() => handleAnnotatorToggle(annotator.id)}
               >
                 {annotator.name}
               </Checkbox>
@@ -164,7 +197,11 @@ export const ProjectDashboardPage = () => {
       </section>
 
       <section className={dashboardClass.elem("chart").toClassName()}>
-        {loading ? (
+        {!hasSelectedViews ? (
+          <div className={dashboardClass.elem("empty").toClassName()}>
+            Select at least one tab to load the dashboard.
+          </div>
+        ) : loading ? (
           <div className={dashboardClass.elem("loading").toClassName()}>
             <Spinner size={48} />
           </div>
@@ -215,13 +252,17 @@ export const ProjectDashboardPage = () => {
           </div>
         ) : (
           <div className={dashboardClass.elem("empty").toClassName()}>
-            No tabs selected for the dashboard.
+            No data available for the selected tabs.
           </div>
         )}
       </section>
 
       <section className={dashboardClass.elem("chart").toClassName()}>
-        {loading ? (
+        {!hasSelectedViews ? (
+          <div className={dashboardClass.elem("empty").toClassName()}>
+            Select at least one tab to load annotation summaries.
+          </div>
+        ) : loading ? (
           <div className={dashboardClass.elem("loading").toClassName()}>
             <Spinner size={48} />
           </div>
@@ -229,36 +270,60 @@ export const ProjectDashboardPage = () => {
           <div className={dashboardClass.elem("bars").toClassName()}>
             {annotationSummary.map((item) => {
               const heightPercent = Math.round((item.total / maxAnnotations) * 100);
-              const yesHeight = item.total ? Math.round((item.yes / item.total) * 100) : 0;
-              const noHeight = 100 - yesHeight;
+              const isHovered = hoveredAnnotationName === item.name;
 
               return (
-                <div key={item.name} className={dashboardClass.elem("bar-wrapper").toClassName()}>
+                <div
+                  key={item.name}
+                  className={dashboardClass.elem("bar-wrapper").toClassName()}
+                  onMouseEnter={() => setHoveredAnnotationName(item.name)}
+                  onMouseLeave={() => setHoveredAnnotationName(null)}
+                >
                   <div
                     className={dashboardClass.elem("bar").mod({ stacked: true }).toClassName()}
                     style={{ height: `${heightPercent}%` }}
                   >
-                    <div
-                      className={dashboardClass.elem("bar-segment").mod({ yes: true }).toClassName()}
-                      style={{ height: `${yesHeight}%` }}
-                    >
-                      {item.yes}
-                    </div>
-                    <div
-                      className={dashboardClass.elem("bar-segment").mod({ no: true }).toClassName()}
-                      style={{ height: `${noHeight}%` }}
-                    >
-                      {item.no}
-                    </div>
+                    {item.choices.map((choice, index) => {
+                      const segmentHeight = item.total
+                        ? Math.round((choice.count / item.total) * 100)
+                        : 0;
+
+                      return (
+                        <div
+                          key={`${choice.value}-${index}`}
+                          className={dashboardClass.elem("bar-segment").toClassName()}
+                          style={{
+                            height: `${segmentHeight}%`,
+                            background: chartColors[index % chartColors.length],
+                          }}
+                        >
+                          {choice.count}
+                        </div>
+                      );
+                    })}
                   </div>
                   <div className={dashboardClass.elem("bar-caption").toClassName()}>{item.name}</div>
+                  {isHovered && (
+                    <div className={dashboardClass.elem("tooltip").toClassName()}>
+                      <div className={dashboardClass.elem("tooltip-title").toClassName()}>
+                        {item.name}
+                      </div>
+                      <ul>
+                        {item.choices.map((choice) => (
+                          <li key={choice.value}>
+                            {choice.value}: {choice.count}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
         ) : (
           <div className={dashboardClass.elem("empty").toClassName()}>
-            No Yes/No choice annotations found for the selected filters.
+            No choice annotations found for the selected filters.
           </div>
         )}
       </section>

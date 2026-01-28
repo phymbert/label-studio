@@ -120,6 +120,7 @@
     align-items: stretch;
     justify-content: flex-end;
     overflow: hidden;
+    min-height: 0;
 
     &:hover {
       transform: none;
@@ -133,14 +134,6 @@
     font-size: 12px;
     font-weight: 600;
     color: #fff;
-  }
-
-  &__bar-segment_yes {
-    background: #22c55e;
-  }
-
-  &__bar-segment_no {
-    background: #f97316;
   }
 
   &__bar-label {
