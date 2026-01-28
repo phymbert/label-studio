@@ -115,7 +115,9 @@ export const ProjectDashboardPage = () => {
   };
 
   const handleBarClick = (viewId) => {
-    history.push(`/projects/${projectId}/data?view=${viewId}`);
+    const targetProjectId = projectId ?? params?.id;
+    if (!targetProjectId) return;
+    history.push(`/projects/${targetProjectId}/data?view=${viewId}`);
   };
 
   const handleAnnotatorToggle = (id) => {

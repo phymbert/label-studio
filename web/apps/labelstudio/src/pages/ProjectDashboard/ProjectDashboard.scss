@@ -103,6 +103,7 @@
     height: 240px;
     padding-bottom: 16px;
     overflow-x: auto;
+    overflow-y: visible;
   }
 
   &__bar-wrapper {
@@ -113,6 +114,7 @@
     min-width: 120px;
     position: relative;
     height: 100%;
+    overflow: visible;
   }
 
   &__bar {
