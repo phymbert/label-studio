@@ -136,6 +136,34 @@ export const ProjectDashboardPage = () => {
 
   const chartColors = ["#22c55e", "#2563eb", "#f97316", "#a855f7", "#ec4899", "#f59e0b"];
 
+  const exportAnnotationCsv = () => {
+    if (!annotationSummary.length) return;
+
+    const rows = [["annotation_name", "choice_value", "count", "total", "percentage"]];
+
+    annotationSummary.forEach((item) => {
+      const total = item.total || 0;
+      item.choices.forEach((choice) => {
+        const percentage = total ? ((choice.count / total) * 100).toFixed(2) : "0.00";
+        rows.push([item.name, choice.value, choice.count, total, percentage]);
+      });
+    });
+
+    const csv = rows
+      .map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `dashboard-annotations-${projectId ?? "project"}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className={dashboardClass.toClassName()}>
       <header className={dashboardClass.elem("header").toClassName()}>
@@ -146,6 +174,16 @@ export const ProjectDashboardPage = () => {
       </header>
 
       <section className={dashboardClass.elem("filters").toClassName()}>
+        <div className={dashboardClass.elem("filters-actions").toClassName()}>
+          <button
+            type="button"
+            className={dashboardClass.elem("export-button").toClassName()}
+            onClick={exportAnnotationCsv}
+            disabled={!annotationSummary.length}
+          >
+            Export annotations CSV
+          </button>
+        </div>
         <div className={dashboardClass.elem("filter-group").toClassName()}>
           <div className={dashboardClass.elem("filter-header").toClassName()}>
             <h3>Tabs</h3>

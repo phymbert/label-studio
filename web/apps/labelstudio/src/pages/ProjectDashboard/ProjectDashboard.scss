@@ -27,6 +27,28 @@
     grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   }
 
+  &__filters-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  &__export-button {
+    border: 1px solid #d0d5dd;
+    background: #fff;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #1f2937;
+    cursor: pointer;
+
+    &:disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+  }
+
   &__filter-group {
     background: #fff;
     border: 1px solid #e6e8eb;
