@@ -117,7 +117,7 @@ export const ProjectDashboardPage = () => {
   const handleBarClick = (viewId) => {
     const targetProjectId = projectId ?? params?.id;
     if (!targetProjectId) return;
-    history.push(`/projects/${targetProjectId}/data?view=${viewId}`);
+    window.open(`/projects/${targetProjectId}/data?view=${viewId}`, "_blank", "noopener");
   };
 
   const handleAnnotatorToggle = (id) => {
@@ -137,6 +137,32 @@ export const ProjectDashboardPage = () => {
   const hasSelectedViews = selectedViewIds.length > 0;
 
   const chartColors = ["#22c55e", "#2563eb", "#f97316", "#a855f7", "#ec4899", "#f59e0b"];
+
+  const getChoiceColor = (choiceValue, index) => {
+    const normalized = String(choiceValue).toLowerCase();
+    if (normalized.includes("yes") || normalized.includes("accept")) return "#22c55e";
+    if (normalized.includes("no") || normalized.includes("reject")) return "#ef4444";
+    if (normalized.includes("need")) return "#f59e0b";
+    return chartColors[index % chartColors.length];
+  };
+
+  const renderYAxis = (maxValue) => {
+    const ticks = 4;
+    const labels = Array.from({ length: ticks + 1 }, (_, index) => {
+      const value = Math.round((maxValue / ticks) * (ticks - index));
+      return value;
+    });
+
+    return (
+      <div className={dashboardClass.elem("y-axis").toClassName()}>
+        {labels.map((label) => (
+          <div key={label} className={dashboardClass.elem("y-axis-label").toClassName()}>
+            {label}
+          </div>
+        ))}
+      </div>
+    );
+  };
 
   const exportAnnotationCsv = () => {
     if (!annotationSummary.length) return;
@@ -247,49 +273,70 @@ export const ProjectDashboardPage = () => {
             <Spinner size={48} />
           </div>
         ) : dashboardData.length ? (
-          <div className={dashboardClass.elem("bars").toClassName()}>
-            {dashboardData.map((view) => {
-              const heightPercent = Math.round((view.task_count / maxTasks) * 100);
-              const isHovered = hoveredViewId === view.id;
+          <div className={dashboardClass.elem("chart-body").toClassName()}>
+            {renderYAxis(maxTasks)}
+            <div className={dashboardClass.elem("bars").toClassName()}>
+              {dashboardData.map((view) => {
+                const heightPercent = Math.round((view.task_count / maxTasks) * 100);
+                const isHovered = hoveredViewId === view.id;
+                const annotatedHeight = view.task_count
+                  ? Math.round((view.annotated_count / view.task_count) * 100)
+                  : 0;
+                const remainingHeight = 100 - annotatedHeight;
 
-              return (
-                <div key={view.id} className={dashboardClass.elem("bar-wrapper").toClassName()}>
-                  <button
-                    type="button"
-                    className={dashboardClass.elem("bar").toClassName()}
-                    style={{ height: `${heightPercent}%` }}
-                    onClick={() => handleBarClick(view.id)}
-                    onMouseEnter={() => setHoveredViewId(view.id)}
-                    onMouseLeave={() => setHoveredViewId(null)}
-                  >
-                    <span className={dashboardClass.elem("bar-label").toClassName()}>
-                      {view.annotated_count}/{view.task_count}
-                    </span>
-                    {isHovered && (
-                      <div className={dashboardClass.elem("tooltip").toClassName()}>
-                        <div className={dashboardClass.elem("tooltip-title").toClassName()}>
-                          {view.title}
-                        </div>
-                        {view.annotators.length ? (
-                          <ul>
-                            {view.annotators.map((annotator) => (
-                              <li key={annotator.id}>
-                                {annotator.name}: {annotator.task_count}
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <div className={dashboardClass.elem("tooltip-empty").toClassName()}>
-                            No annotations for selected annotators.
-                          </div>
-                        )}
+                return (
+                  <div key={view.id} className={dashboardClass.elem("bar-wrapper").toClassName()}>
+                    <button
+                      type="button"
+                      className={dashboardClass.elem("bar").mod({ stacked: true }).toClassName()}
+                      style={{ height: `${heightPercent}%` }}
+                      onClick={() => handleBarClick(view.id)}
+                      onMouseEnter={() => setHoveredViewId(view.id)}
+                      onMouseLeave={() => setHoveredViewId(null)}
+                    >
+                      <div
+                        className={dashboardClass.elem("bar-segment").toClassName()}
+                        style={{ height: `${annotatedHeight}%`, background: "#2563eb" }}
+                      >
+                        {view.annotated_count}
                       </div>
-                    )}
-                  </button>
-                  <div className={dashboardClass.elem("bar-caption").toClassName()}>{view.title}</div>
-                </div>
-              );
-            })}
+                      <div
+                        className={dashboardClass.elem("bar-segment").toClassName()}
+                        style={{ height: `${remainingHeight}%`, background: "#93c5fd" }}
+                      >
+                        {view.task_count - view.annotated_count}
+                      </div>
+                      <span className={dashboardClass.elem("bar-label").toClassName()}>
+                        {view.annotated_count}/{view.task_count}
+                      </span>
+                      {isHovered && (
+                        <div className={dashboardClass.elem("tooltip").toClassName()}>
+                          <div className={dashboardClass.elem("tooltip-title").toClassName()}>
+                            {view.title}
+                          </div>
+                          {view.annotators.length ? (
+                            <ul>
+                              {view.annotators.map((annotator) => (
+                                <li key={annotator.id}>
+                                  {annotator.name}: {annotator.task_count}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <div className={dashboardClass.elem("tooltip-empty").toClassName()}>
+                              No annotations for selected annotators.
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </button>
+                    <div className={dashboardClass.elem("bar-caption").toClassName()}>
+                      {view.title}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         ) : (
           <div className={dashboardClass.elem("empty").toClassName()}>
@@ -308,59 +355,64 @@ export const ProjectDashboardPage = () => {
             <Spinner size={48} />
           </div>
         ) : annotationSummary.length ? (
-          <div className={dashboardClass.elem("bars").toClassName()}>
-            {annotationSummary.map((item) => {
-              const heightPercent = Math.round((item.total / maxAnnotations) * 100);
-              const isHovered = hoveredAnnotationName === item.name;
+          <div className={dashboardClass.elem("chart-body").toClassName()}>
+            {renderYAxis(maxAnnotations)}
+            <div className={dashboardClass.elem("bars").toClassName()}>
+              {annotationSummary.map((item) => {
+                const heightPercent = Math.round((item.total / maxAnnotations) * 100);
+                const isHovered = hoveredAnnotationName === item.name;
 
-              return (
-                <div
-                  key={item.name}
-                  className={dashboardClass.elem("bar-wrapper").toClassName()}
-                  onMouseEnter={() => setHoveredAnnotationName(item.name)}
-                  onMouseLeave={() => setHoveredAnnotationName(null)}
-                >
+                return (
                   <div
-                    className={dashboardClass.elem("bar").mod({ stacked: true }).toClassName()}
-                    style={{ height: `${heightPercent}%` }}
+                    key={item.name}
+                    className={dashboardClass.elem("bar-wrapper").toClassName()}
+                    onMouseEnter={() => setHoveredAnnotationName(item.name)}
+                    onMouseLeave={() => setHoveredAnnotationName(null)}
                   >
-                    {item.choices.map((choice, index) => {
-                      const segmentHeight = item.total
-                        ? Math.round((choice.count / item.total) * 100)
-                        : 0;
+                    <div
+                      className={dashboardClass.elem("bar").mod({ stacked: true }).toClassName()}
+                      style={{ height: `${heightPercent}%` }}
+                    >
+                      {item.choices.map((choice, index) => {
+                        const segmentHeight = item.total
+                          ? Math.round((choice.count / item.total) * 100)
+                          : 0;
 
-                      return (
-                        <div
-                          key={`${choice.value}-${index}`}
-                          className={dashboardClass.elem("bar-segment").toClassName()}
-                          style={{
-                            height: `${segmentHeight}%`,
-                            background: chartColors[index % chartColors.length],
-                          }}
-                        >
-                          {choice.count}
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className={dashboardClass.elem("bar-caption").toClassName()}>{item.name}</div>
-                  {isHovered && (
-                    <div className={dashboardClass.elem("tooltip").toClassName()}>
-                      <div className={dashboardClass.elem("tooltip-title").toClassName()}>
-                        {item.name}
-                      </div>
-                      <ul>
-                        {item.choices.map((choice) => (
-                          <li key={choice.value}>
-                            {choice.value}: {choice.count}
-                          </li>
-                        ))}
-                      </ul>
+                        return (
+                          <div
+                            key={`${choice.value}-${index}`}
+                            className={dashboardClass.elem("bar-segment").toClassName()}
+                            style={{
+                              height: `${segmentHeight}%`,
+                              background: getChoiceColor(choice.value, index),
+                            }}
+                          >
+                            {choice.count}
+                          </div>
+                        );
+                      })}
                     </div>
-                  )}
-                </div>
-              );
-            })}
+                    <div className={dashboardClass.elem("bar-caption").toClassName()}>
+                      {item.name}
+                    </div>
+                    {isHovered && (
+                      <div className={dashboardClass.elem("tooltip").toClassName()}>
+                        <div className={dashboardClass.elem("tooltip-title").toClassName()}>
+                          {item.name}
+                        </div>
+                        <ul>
+                          {item.choices.map((choice) => (
+                            <li key={choice.value}>
+                              {choice.value}: {choice.count}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         ) : (
           <div className={dashboardClass.elem("empty").toClassName()}>

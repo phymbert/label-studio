@@ -85,6 +85,7 @@
     border-radius: 12px;
     padding: 20px;
     min-height: 320px;
+    overflow: visible;
   }
 
   &__loading,
@@ -104,6 +105,28 @@
     padding-bottom: 16px;
     overflow-x: auto;
     overflow-y: visible;
+    flex: 1;
+  }
+
+  &__chart-body {
+    display: flex;
+    gap: 16px;
+    height: 260px;
+    align-items: stretch;
+  }
+
+  &__y-axis {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-width: 40px;
+    color: #6b7280;
+    font-size: 12px;
+    padding-bottom: 16px;
+  }
+
+  &__y-axis-label {
+    text-align: right;
   }
 
   &__bar-wrapper {
@@ -115,6 +138,7 @@
     position: relative;
     height: 100%;
     overflow: visible;
+    justify-content: flex-end;
   }
 
   &__bar {
@@ -130,6 +154,7 @@
     justify-content: center;
     padding-bottom: 8px;
     transition: transform 0.15s ease;
+    overflow: visible;
 
     &:hover {
       transform: translateY(-4px);
@@ -145,6 +170,7 @@
     justify-content: flex-end;
     overflow: hidden;
     min-height: 0;
+    gap: 2px;
 
     &:hover {
       transform: none;
@@ -158,11 +184,18 @@
     font-size: 12px;
     font-weight: 600;
     color: #fff;
+    min-height: 16px;
   }
 
   &__bar-label {
     font-size: 12px;
     font-weight: 600;
+    position: absolute;
+    inset: 8px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    pointer-events: none;
   }
 
   &__bar-caption {
@@ -184,7 +217,7 @@
     width: 200px;
     font-size: 12px;
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
-    z-index: 2;
+    z-index: 10;
 
     ul {
       margin: 8px 0 0;
