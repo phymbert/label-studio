@@ -117,7 +117,7 @@ export const ProjectDashboardPage = () => {
   const handleBarClick = (viewId) => {
     const targetProjectId = projectId ?? params?.id;
     if (!targetProjectId) return;
-    window.open(`/projects/${targetProjectId}/data?view=${viewId}`, "_blank", "noopener");
+    window.open(`/projects/${targetProjectId}/data?tab=${viewId}`, "_blank", "noopener");
   };
 
   const handleAnnotatorToggle = (id) => {
@@ -285,14 +285,17 @@ export const ProjectDashboardPage = () => {
                 const remainingHeight = 100 - annotatedHeight;
 
                 return (
-                  <div key={view.id} className={dashboardClass.elem("bar-wrapper").toClassName()}>
+                  <div
+                    key={view.id}
+                    className={dashboardClass.elem("bar-wrapper").toClassName()}
+                    onMouseEnter={() => setHoveredViewId(view.id)}
+                    onMouseLeave={() => setHoveredViewId(null)}
+                  >
                     <button
                       type="button"
                       className={dashboardClass.elem("bar").mod({ stacked: true }).toClassName()}
                       style={{ height: `${heightPercent}%` }}
                       onClick={() => handleBarClick(view.id)}
-                      onMouseEnter={() => setHoveredViewId(view.id)}
-                      onMouseLeave={() => setHoveredViewId(null)}
                     >
                       <div
                         className={dashboardClass.elem("bar-segment").toClassName()}
@@ -309,30 +312,30 @@ export const ProjectDashboardPage = () => {
                       <span className={dashboardClass.elem("bar-label").toClassName()}>
                         {view.annotated_count}/{view.task_count}
                       </span>
-                      {isHovered && (
-                        <div className={dashboardClass.elem("tooltip").toClassName()}>
-                          <div className={dashboardClass.elem("tooltip-title").toClassName()}>
-                            {view.title}
-                          </div>
-                          {view.annotators.length ? (
-                            <ul>
-                              {view.annotators.map((annotator) => (
-                                <li key={annotator.id}>
-                                  {annotator.name}: {annotator.task_count}
-                                </li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <div className={dashboardClass.elem("tooltip-empty").toClassName()}>
-                              No annotations for selected annotators.
-                            </div>
-                          )}
-                        </div>
-                      )}
                     </button>
                     <div className={dashboardClass.elem("bar-caption").toClassName()}>
                       {view.title}
                     </div>
+                    {isHovered && (
+                      <div className={dashboardClass.elem("tooltip").toClassName()}>
+                        <div className={dashboardClass.elem("tooltip-title").toClassName()}>
+                          {view.title}
+                        </div>
+                        {view.annotators.length ? (
+                          <ul>
+                            {view.annotators.map((annotator) => (
+                              <li key={annotator.id}>
+                                {annotator.name}: {annotator.task_count}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <div className={dashboardClass.elem("tooltip-empty").toClassName()}>
+                            No annotations for selected annotators.
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}
