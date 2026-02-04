@@ -6,6 +6,7 @@ from core.feature_flags import flag_set
 from core.mixins import GetParentObjectMixin
 from core.permissions import ViewClassPermission, all_permissions
 from core.utils.common import is_community
+from core.utils.guardrails import require_delete_allowed
 from core.utils.params import bool_from_request
 from data_manager.api import TaskListAPI as DMTaskListAPI
 from data_manager.functions import evaluate_predictions
@@ -378,6 +379,7 @@ class TaskAPI(generics.RetrieveUpdateDestroyAPIView):
 
     @api_webhook_for_delete(WebhookAction.TASKS_DELETED)
     def delete(self, request, *args, **kwargs):
+        require_delete_allowed('tasks')
         task = self.get_object()
         _require_admin(request.user, task.project.organization_id, 'Only organization administrators can delete tasks.')
         return super(TaskAPI, self).delete(request, *args, **kwargs)
@@ -499,6 +501,7 @@ class AnnotationAPI(generics.RetrieveUpdateDestroyAPIView):
 
     @api_webhook_for_delete(WebhookAction.ANNOTATIONS_DELETED)
     def delete(self, request, *args, **kwargs):
+        require_delete_allowed('annotations')
         return super(AnnotationAPI, self).delete(request, *args, **kwargs)
 
 
@@ -879,6 +882,7 @@ class PredictionAPI(viewsets.ModelViewSet):
         return Prediction.objects.filter(project__organization=self.request.user.active_organization)
 
     def destroy(self, request, *args, **kwargs):
+        require_delete_allowed('predictions')
         prediction = self.get_object()
         _require_admin(
             request.user,
@@ -908,6 +912,7 @@ class AnnotationConvertAPI(generics.RetrieveAPIView):
         pass
 
     def post(self, request, *args, **kwargs):
+        require_delete_allowed('annotations')
         annotation = self.get_object()
         organization = annotation.project.organization
         project = annotation.project

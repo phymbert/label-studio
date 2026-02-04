@@ -333,6 +333,9 @@ export default types
       if (reviewRoles.includes(userRole) && !self.hasInterface("review")) {
         addInterface("review");
       }
+      if (window.APP_SETTINGS?.delete_guardrails === true) {
+        toggleInterface("annotations:delete", false);
+      }
 
       self.attachHotkeys();
 

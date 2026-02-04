@@ -13,6 +13,7 @@ from core.redis import start_job_async_or_sync
 from core.utils.common import paginator, paginator_help, temporary_disconnect_all_signals
 from core.utils.exceptions import LabelStudioDatabaseException, ProjectExistException
 from core.utils.filterset_to_openapi_params import filterset_to_openapi_params
+from core.utils.guardrails import require_delete_allowed
 from core.utils.io import find_dir, find_file, read_yaml
 from core.utils.serializer_to_openapi_params import serializer_to_openapi_params
 from data_manager.functions import filters_ordering_selected_items_exist, get_prepared_queryset
@@ -401,6 +402,7 @@ class ProjectAPI(generics.RetrieveUpdateDestroyAPIView):
 
     @api_webhook_for_delete(WebhookAction.PROJECT_DELETED)
     def delete(self, request, *args, **kwargs):
+        require_delete_allowed('projects')
         return super(ProjectAPI, self).delete(request, *args, **kwargs)
 
     @api_webhook(WebhookAction.PROJECT_UPDATED)
@@ -763,6 +765,7 @@ class ProjectTaskListAPI(GetParentObjectMixin, generics.ListCreateAPIView, gener
             raise Http404
 
     def delete(self, request, *args, **kwargs):
+        require_delete_allowed('tasks')
         project = generics.get_object_or_404(Project.objects.for_user(self.request.user), pk=self.kwargs['pk'])
         task_ids = list(Task.objects.filter(project=project).values('id'))
         Task.delete_tasks_without_signals(Task.objects.filter(project=project))
@@ -894,6 +897,7 @@ class ProjectModelVersions(generics.RetrieveAPIView):
             return Response(data=data)
 
     def delete(self, request, *args, **kwargs):
+        require_delete_allowed('predictions')
         project = self.get_object()
         model_version = request.data.get('model_version', None)
 

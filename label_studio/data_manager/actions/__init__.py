@@ -14,11 +14,20 @@ from typing import Callable, Optional, TypedDict, Union
 
 from core.feature_flags import flag_set
 from core.utils.common import load_func
+from core.utils.guardrails import is_delete_guardrails_enabled, require_delete_allowed
 from data_manager.functions import DataManagerException
 from django.conf import settings
 from rest_framework.exceptions import PermissionDenied
 
 logger = logging.getLogger(__name__)
+
+_DELETE_ACTION_IDS = {'delete_tasks', 'delete_tasks_annotations', 'delete_tasks_predictions'}
+
+
+def _filter_guardrails_actions(actions: list[DataManagerAction]) -> list[DataManagerAction]:
+    if not is_delete_guardrails_enabled():
+        return actions
+    return [action for action in actions if action.get('id') not in _DELETE_ACTION_IDS]
 
 
 class DataManagerAction(TypedDict):
@@ -65,6 +74,7 @@ def get_all_actions(user, project):
         for action in actions
         if not action.get('hidden', False) and check_permission(user, action, project)
     ]
+    actions = _filter_guardrails_actions(actions)
     # remove experimental features if they are disabled
     if not (
         flag_set('ff_back_experimental_features', user=project.organization.created_by)
@@ -136,6 +146,8 @@ def perform_action(action_id, project, queryset, user, **kwargs):
     # check user permissions for this action
     if not check_permission(user, action, project):
         raise PermissionDenied(f'Action is not allowed for the current user: {action["id"]}')
+    if action_id in _DELETE_ACTION_IDS:
+        require_delete_allowed(action_id)
 
     try:
         result = action['entry_point'](project, queryset, **kwargs)
@@ -156,6 +168,8 @@ def get_action_form(action_id, project, user):
 
     if not check_permission(user, action, project):
         raise PermissionDenied(f'Action is not allowed for the current user: {action["id"]}')
+    if action_id in _DELETE_ACTION_IDS:
+        require_delete_allowed(action_id)
 
     form = action.get('dialog', {}).get('form')
     if callable(form):
