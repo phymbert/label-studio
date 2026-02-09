@@ -167,6 +167,8 @@
       initials: "{{user.get_initials}}",
 	email: "{{user.email}}",
 	customHotkeys: __customHotkeys,
+      role: "{{ user.role }}",
+      is_superuser: {{ user.is_superuser|yesno:"true,false" }},
 
       allow_newsletters: {% if user.allow_newsletters is None %}null{% else %}{{user.allow_newsletters|yesno:"true,false"}}{% endif %},
       {% if user.avatar %}
@@ -204,6 +206,10 @@
     {% endblock %}
 
   }, {% block frontend_settings %}{}{% endblock %});
+
+  if (window.APP_SETTINGS?.user?.role === "DI") {
+    window.location.href = "/logout";
+  }
 </script>
 
 {% block app-js %}

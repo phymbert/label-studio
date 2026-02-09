@@ -9,17 +9,28 @@ import { isDefined } from "../../../utils/helpers";
 import "./PeopleList.scss";
 import { CopyableTooltip } from "../../../components/CopyableTooltip/CopyableTooltip";
 
-export const PeopleList = ({ onSelect, selectedUser, defaultSelected }) => {
+const ROLE_LABELS = {
+  OW: "Owner",
+  AD: "Administrator",
+  AN: "Annotator",
+  RE: "Reviewer",
+  RO: "Read only",
+  NO: "Not activated",
+  DI: "Deactivated",
+};
+
+export const PeopleList = ({ onSelect, selectedUser, defaultSelected, reloadToken }) => {
   const api = useAPI();
   const [usersList, setUsersList] = useState();
   const [currentPage] = usePage("page", 1);
   const [currentPageSize] = usePageSize("page_size", 30);
   const [totalItems, setTotalItems] = useState(0);
+  const organizationId = window.APP_SETTINGS?.user?.active_organization ?? 1;
 
   const fetchUsers = useCallback(async (page, pageSize) => {
     const response = await api.callApi("memberships", {
       params: {
-        pk: 1,
+        pk: organizationId,
         contributed_to_projects: 1,
         page,
         page_size: pageSize,
@@ -27,10 +38,18 @@ export const PeopleList = ({ onSelect, selectedUser, defaultSelected }) => {
     });
 
     if (response.results) {
-      setUsersList(response.results);
+      const mapped = response.results.map((member) => ({
+        ...member,
+        user: {
+          ...member.user,
+          role: member.role,
+        },
+        roleLabel: ROLE_LABELS[member.role] ?? member.role,
+      }));
+      setUsersList(mapped);
       setTotalItems(response.count);
     }
-  }, []);
+  }, [organizationId]);
 
   const selectUser = useCallback(
     (user) => {
@@ -45,7 +64,7 @@ export const PeopleList = ({ onSelect, selectedUser, defaultSelected }) => {
 
   useEffect(() => {
     fetchUsers(currentPage, currentPageSize);
-  }, []);
+  }, [fetchUsers, currentPage, currentPageSize, reloadToken]);
 
   useEffect(() => {
     if (isDefined(defaultSelected) && usersList) {
@@ -65,10 +84,11 @@ export const PeopleList = ({ onSelect, selectedUser, defaultSelected }) => {
                 <div className={cn("people-list").elem("column").mix("avatar").toClassName()} />
                 <div className={cn("people-list").elem("column").mix("email").toClassName()}>Email</div>
                 <div className={cn("people-list").elem("column").mix("name").toClassName()}>Name</div>
+                <div className={cn("people-list").elem("column").mix("role").toClassName()}>Role</div>
                 <div className={cn("people-list").elem("column").mix("last-activity").toClassName()}>Last Activity</div>
               </div>
               <div className={cn("people-list").elem("body").toClassName()}>
-                {usersList.map(({ user }) => {
+                {usersList.map(({ user, roleLabel }) => {
                   const active = user.id === selectedUser?.id;
 
                   return (
@@ -86,6 +106,7 @@ export const PeopleList = ({ onSelect, selectedUser, defaultSelected }) => {
                       <div className={cn("people-list").elem("field").mix("name").toClassName()}>
                         {user.first_name} {user.last_name}
                       </div>
+                      <div className={cn("people-list").elem("field").mix("role").toClassName()}>{roleLabel}</div>
                       <div className={cn("people-list").elem("field").mix("last-activity").toClassName()}>
                         {formatDistance(new Date(user.last_activity), new Date(), { addSuffix: true })}
                       </div>

@@ -43,7 +43,7 @@ from projects.serializers import (
     ProjectSummarySerializer,
 )
 from rest_framework import filters, generics, status
-from rest_framework.exceptions import NotFound
+from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.exceptions import ValidationError as RestValidationError
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
@@ -201,6 +201,9 @@ class ProjectListAPI(generics.ListCreateAPIView):
         return context
 
     def perform_create(self, ser):
+        if not self.request.user.is_organization_admin():
+            raise PermissionDenied('Only organization administrators can create projects.')
+
         try:
             ser.save(organization=self.request.user.active_organization)
         except IntegrityError as e:
@@ -402,6 +405,9 @@ class ProjectAPI(generics.RetrieveUpdateDestroyAPIView):
 
     @api_webhook(WebhookAction.PROJECT_UPDATED)
     def patch(self, request, *args, **kwargs):
+        if not request.user.is_organization_admin():
+            raise PermissionDenied('Only organization administrators can update project settings.')
+
         project = self.get_object()
         label_config = self.request.data.get('label_config')
 
@@ -422,6 +428,8 @@ class ProjectAPI(generics.RetrieveUpdateDestroyAPIView):
     @extend_schema(exclude=True)
     @api_webhook(WebhookAction.PROJECT_UPDATED)
     def put(self, request, *args, **kwargs):
+        if not request.user.is_organization_admin():
+            raise PermissionDenied('Only organization administrators can update project settings.')
         return super(ProjectAPI, self).put(request, *args, **kwargs)
 
 

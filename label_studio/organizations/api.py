@@ -17,6 +17,7 @@ from organizations.serializers import (
     OrganizationMemberListParamsSerializer,
     OrganizationMemberListSerializer,
     OrganizationMemberSerializer,
+    OrganizationMemberWriteSerializer,
     OrganizationSerializer,
 )
 from projects.models import Project
@@ -118,6 +119,7 @@ class OrganizationMemberListAPI(generics.ListAPIView):
         PUT=all_permissions.organizations_change,
         PATCH=all_permissions.organizations_change,
         DELETE=all_permissions.organizations_change,
+        POST=all_permissions.organizations_change,
     )
     serializer_class = OrganizationMemberListSerializer
     pagination_class = OrganizationMemberListPagination
@@ -178,7 +180,8 @@ class OrganizationMemberListAPI(generics.ListAPIView):
         }
 
     def get_queryset(self):
-        org = generics.get_object_or_404(self.request.user.organizations, pk=self.kwargs[self.lookup_field])
+        base_qs = Organization.objects.all() if self.request.user.is_superuser else self.request.user.organizations
+        org = generics.get_object_or_404(base_qs, pk=self.kwargs[self.lookup_field])
         if flag_set('fix_backend_dev_3134_exclude_deactivated_users', self.request.user):
             serializer = OrganizationMemberListParamsSerializer(data=self.request.GET)
             serializer.is_valid(raise_exception=True)
@@ -192,6 +195,17 @@ class OrganizationMemberListAPI(generics.ListAPIView):
             return org.members.prefetch_related('user__om_through').order_by('user__username')
         else:
             return org.members.prefetch_related('user__om_through').order_by('user__username')
+
+    def post(self, request, *args, **kwargs):
+        organization = generics.get_object_or_404(Organization.objects.all(), pk=self.kwargs[self.lookup_field])
+        if not request.user.is_organization_admin(organization.pk):
+            raise PermissionDenied('Only organization administrators can add organization members.')
+
+        serializer = OrganizationMemberWriteSerializer(data=request.data, context={'organization': organization})
+        serializer.is_valid(raise_exception=True)
+        member = serializer.save()
+        output = OrganizationMemberSerializer(member, context={'organization': organization})
+        return Response(output.data, status=status.HTTP_201_CREATED)
 
 
 @method_decorator(
@@ -247,15 +261,16 @@ class OrganizationMemberDetailAPI(GetParentObjectMixin, generics.RetrieveDestroy
     permission_required = ViewClassPermission(
         GET=all_permissions.organizations_view,
         DELETE=all_permissions.organizations_change,
+        PATCH=all_permissions.organizations_change,
     )
     parent_queryset = Organization.objects.all()
     parser_classes = (JSONParser, FormParser, MultiPartParser)
     serializer_class = OrganizationMemberSerializer
-    http_method_names = ['delete', 'get']
+    http_method_names = ['delete', 'get', 'patch']
 
     @property
     def permission_classes(self):
-        if self.request.method == 'DELETE':
+        if self.request.method in ['DELETE', 'PATCH']:
             return [IsAuthenticated, HasObjectPermission]
         return api_settings.DEFAULT_PERMISSION_CLASSES
 
@@ -291,6 +306,21 @@ class OrganizationMemberDetailAPI(GetParentObjectMixin, generics.RetrieveDestroy
 
         member.soft_delete()
         return Response(status=204)  # 204 No Content is a common HTTP status for successful delete requests
+
+    def patch(self, request, pk=None, user_pk=None):
+        org = self.parent_object
+        if not request.user.is_organization_admin(org.pk):
+            raise PermissionDenied('Only organization administrators can change member roles.')
+
+        user = get_object_or_404(User, pk=user_pk)
+        member = get_object_or_404(OrganizationMember, user=user, organization=org)
+        serializer = OrganizationMemberWriteSerializer(
+            member, data=request.data, partial=True, context={'organization': org}
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        output = OrganizationMemberSerializer(member, context={'organization': org})
+        return Response(output.data, status=status.HTTP_200_OK)
 
 
 @method_decorator(
@@ -333,10 +363,14 @@ class OrganizationAPI(generics.RetrieveUpdateAPIView):
         return super(OrganizationAPI, self).get(request, *args, **kwargs)
 
     def patch(self, request, *args, **kwargs):
+        if not request.user.is_organization_admin(self.get_object().pk):
+            raise PermissionDenied('Only organization administrators can update organization settings.')
         return super(OrganizationAPI, self).patch(request, *args, **kwargs)
 
     @extend_schema(exclude=True)
     def put(self, request, *args, **kwargs):
+        if not request.user.is_organization_admin(self.get_object().pk):
+            raise PermissionDenied('Only organization administrators can update organization settings.')
         return super(OrganizationAPI, self).put(request, *args, **kwargs)
 
 

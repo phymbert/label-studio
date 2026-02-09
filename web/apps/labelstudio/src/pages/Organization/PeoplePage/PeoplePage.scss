@@ -3,6 +3,10 @@
     padding: 0 0 1rem;
   }
 
+  &__add-form {
+    margin-top: 12px;
+  }
+
   &__content {
     display: grid;
     grid-template-columns: 1fr 1fr;
