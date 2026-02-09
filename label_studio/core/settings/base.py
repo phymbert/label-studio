@@ -845,26 +845,15 @@ if ENABLE_CSP := get_bool_env('ENABLE_CSP', True):
         "'report-sample'",
         "'unsafe-inline'",
         'blob:',
-        'browser.sentry-cdn.com',
-        'https://*.googletagmanager.com',
     )
     CSP_IMG_SRC = (
         "'self'",
         "'report-sample'",
         'data:',
-        'https://*.google-analytics.com',
-        'https://*.googletagmanager.com',
-        'https://*.google.com',
     )
     CSP_CONNECT_SRC = (
         "'self'",
         "'report-sample'",
-        'https://*.google-analytics.com',
-        'https://*.analytics.google.com',
-        'https://analytics.google.com',
-        'https://*.googletagmanager.com',
-        'https://*.g.double' + 'click.net',  # hacky way of suppressing codespell complaint
-        'https://*.ingest.sentry.io',
     )
     # Note that this will be overridden to real CSP for views that use the override_report_only_csp decorator
     CSP_REPORT_ONLY = get_bool_env('LS_CSP_REPORT_ONLY', True)
