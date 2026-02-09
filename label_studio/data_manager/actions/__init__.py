@@ -19,17 +19,6 @@ from data_manager.functions import DataManagerException
 from django.conf import settings
 from rest_framework.exceptions import PermissionDenied
 
-logger = logging.getLogger(__name__)
-
-_DELETE_ACTION_IDS = {'delete_tasks', 'delete_tasks_annotations', 'delete_tasks_predictions'}
-
-
-def _filter_guardrails_actions(actions: list[DataManagerAction]) -> list[DataManagerAction]:
-    if not is_delete_guardrails_enabled():
-        return actions
-    return [action for action in actions if action.get('id') not in _DELETE_ACTION_IDS]
-
-
 class DataManagerAction(TypedDict):
     entry_point: Callable
     permission: Union[str, list[str]]
@@ -40,6 +29,17 @@ class DataManagerAction(TypedDict):
     hidden: Optional[bool]
     disabled: Optional[Callable]
     disabled_reason: Optional[str]
+
+
+logger = logging.getLogger(__name__)
+
+_DELETE_ACTION_IDS = {'delete_tasks', 'delete_tasks_annotations', 'delete_tasks_predictions'}
+
+
+def _filter_guardrails_actions(actions: list[DataManagerAction]) -> list[DataManagerAction]:
+    if not is_delete_guardrails_enabled():
+        return actions
+    return [action for action in actions if action.get('id') not in _DELETE_ACTION_IDS]
 
 
 def check_action_permission(user, action, project):

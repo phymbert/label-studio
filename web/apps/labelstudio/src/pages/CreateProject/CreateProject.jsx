@@ -162,7 +162,7 @@ export const CreateProject = ({ onClose }) => {
     setWaitingStatus(false);
 
     history.push(`/projects/${response.id}/data`);
-  }, [project, projectBody, finishUpload]);
+  }, [api, finishUpload, history, project, projectBody, sample, uploadSample]);
 
   const onSaveName = async () => {
     if (error) return;
@@ -196,7 +196,7 @@ export const CreateProject = ({ onClose }) => {
       onClose?.();
     };
     performClose();
-  }, [project, deleteGuardrailsEnabled]);
+  }, [api, deleteGuardrailsEnabled, onClose, project, updateProject]);
 
   return (
     <Modal onHide={onDelete} closeOnClickOutside={false} allowToInterceptEscape fullscreen visible bare>
