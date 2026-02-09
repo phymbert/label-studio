@@ -40,6 +40,8 @@ export const API_CONFIG = {
 
     // DM
     deleteTabs: "DELETE:/dm/views/reset",
+    dmViews: "GET:/dm/views",
+    dmDashboard: "GET:/dm/dashboard",
 
     // Storages
     listStorages: "/storages/:target?",
