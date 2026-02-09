@@ -183,8 +183,9 @@ export const CreateProject = ({ onClose }) => {
 
   const onDelete = React.useCallback(() => {
     const performClose = async () => {
+      const shouldDelete = project?.is_draft === true && !deleteGuardrailsEnabled;
       setWaitingStatus(true);
-      if (project && !deleteGuardrailsEnabled) {
+      if (project && shouldDelete) {
         await api.callApi("deleteProject", {
           params: {
             pk: project.id,
