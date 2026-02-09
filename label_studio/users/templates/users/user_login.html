@@ -1,22 +1,47 @@
 {% extends 'users/user_base.html' %}
 
 {% block user_content %}
-  <form id="login-form" action="{% url 'user-login' %}?next={{ next }}" method="post">
-    {% csrf_token %}
-    <p><input type="text" class="lsf-input-ls" name="email" id="email" placeholder="Email" value="{{ form.data.email }}"></p>
-    <p><input type="password" class="lsf-input-ls" name="password" id="password" placeholder="Password"></p>
-    {% if form.non_field_errors %}
-      {% for error in form.non_field_errors %}
-        <p class="error">
-          {{ error }}
-        </p>
-      {% endfor %}
-    {% endif %}
-    <p>
-      <input type="checkbox" id="persist_session" name="persist_session" class="lsf-checkbox-ls" checked="checked" style="width: auto;" />
-      <label for="persist_session">Keep me logged in this browser</label>
-    </p>
-    <p><button type="submit" aria-label="Log In" class="lsf-button-ls lsf-button-ls_look_primary">Log in</button></p>
-  </form>
+  {% if settings.OIDC_ENABLED %}
+    <form id="sso-login-form" action="{% url 'user-sso-login' %}" method="get" style="max-width: 420px; margin: 0 auto;">
+      <input type="hidden" name="next" value="{{ next }}">
+      <p class="lsf-input-wrapper">
+        <label for="persist_session" style="display: inline-flex; align-items: center; gap: 8px;">
+          <input type="checkbox" id="persist_session" name="persist_session" class="lsf-checkbox-ls" checked="checked" style="width: auto;" />
+          <span>Keep me logged in this browser</span>
+        </label>
+      </p>
+      {% if oidc_error %}
+        <p class="error" style="text-align: left;">{{ oidc_error }}</p>
+      {% endif %}
+      <p style="text-align: center; margin-top: 16px;">
+        <button
+          type="submit"
+          aria-label="Log in with SSO"
+          class="lsf-button-ls lsf-button-ls_look_primary"
+          style="width: 100%; padding: 10px 16px;"
+        >
+          Login with SSO
+        </button>
+      </p>
+    </form>
+  {% else %}
+    <form id="login-form" action="{% url 'user-login' %}?next={{ next }}" method="post">
+      {% csrf_token %}
+      <p><input type="text" class="lsf-input-ls" name="email" id="email" placeholder="Email" value="{{ form.data.email }}"></p>
+      <p><input type="password" class="lsf-input-ls" name="password" id="password" placeholder="Password"></p>
+      {% if form.non_field_errors %}
+        {% for error in form.non_field_errors %}
+          <p class="error">
+            {{ error }}
+          </p>
+        {% endfor %}
+      {% endif %}
+      <p>
+        <input type="checkbox" id="persist_session" name="persist_session" class="lsf-checkbox-ls" checked="checked" style="width: auto;" />
+        <label for="persist_session">Keep me logged in this browser</label>
+      </p>
+      <p><button type="submit" aria-label="Log In" class="lsf-button-ls lsf-button-ls_look_primary">Log in</button></p>
+    </form>
+  {% endif %}
 
 {% endblock %}

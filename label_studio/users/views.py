@@ -8,15 +8,24 @@ from core.middleware import enforce_csrf_checks
 from core.utils.common import load_func
 from django.conf import settings
 from django.contrib import auth
+from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect, render, reverse
 from django.utils.http import url_has_allowed_host_and_scheme
+import requests
 from organizations.forms import OrganizationSignupForm
 from organizations.models import Organization
 from rest_framework.authtoken.models import Token
 from users import forms
 from users.functions import login, proceed_registration
+from users.oidc import (
+    OIDCAuthenticationError,
+    OIDCClient,
+    OIDCConfigurationError,
+    get_default_next_page,
+    resolve_next_page,
+)
 
 logger = logging.getLogger()
 
@@ -103,6 +112,9 @@ def user_signup(request):
 @enforce_csrf_checks
 def user_login(request):
     """Login page"""
+    if settings.OIDC_ENABLED:
+        return redirect('user-sso-login')
+
     user = request.user
     next_page = request.GET.get('next')
 
@@ -139,6 +151,152 @@ def user_login(request):
         return render(request, 'users/new-ui/user_login.html', {'form': form, 'next': quote(next_page)})
 
     return render(request, 'users/user_login.html', {'form': form, 'next': quote(next_page)})
+
+
+@enforce_csrf_checks
+def user_sso_login(request):
+    if not settings.OIDC_ENABLED:
+        return redirect('user-login')
+
+    next_page = request.GET.get('next') or get_default_next_page(request.user)
+    persist_session = request.GET.get('persist_session', '1') not in ('0', 'false', 'False')
+    # Safe redirect only to same host
+    if not url_has_allowed_host_and_scheme(url=next_page, allowed_hosts={request.get_host()}):
+        next_page = get_default_next_page(request.user)
+
+    oidc = OIDCClient()
+    try:
+        auth_url = oidc.build_auth_url(request, next_page)
+        request.session['keep_me_logged_in'] = persist_session
+        if not persist_session:
+            request.session.set_expiry(0)
+    except Exception as exc:
+        logger.exception('Failed to start OIDC login flow.')
+        return render(
+            request,
+            'users/user_login.html',
+            {'form': forms.LoginForm(), 'next': quote(next_page), 'oidc_error': str(exc)},
+        )
+
+    return redirect(auth_url)
+
+
+def _ensure_user_membership(user):
+    if Organization.objects.exists():
+        org = Organization.objects.first()
+        org.add_user(user)
+    else:
+        org = Organization.create_organization(created_by=user, title=settings.OIDC_ORGANIZATION_TITLE)
+    user.active_organization = org
+    user.save(update_fields=['active_organization'])
+    return org
+
+
+@enforce_csrf_checks
+def user_sso_callback(request):
+    if not settings.OIDC_ENABLED:
+        return redirect('user-login')
+
+    def _restart_oidc_login(reason_message):
+        logger.warning('Restarting OIDC login flow: %s', reason_message)
+        oidc = OIDCClient()
+        try:
+            retry_next = resolve_next_page(request, get_default_next_page(request.user))
+            auth_url = oidc.build_auth_url(request, retry_next)
+            return redirect(auth_url)
+        except Exception:
+            logger.exception('Failed to restart OIDC login flow after: %s', reason_message)
+            return render(
+                request,
+                'users/user_login.html',
+                {
+                    'form': forms.LoginForm(),
+                    'next': quote(get_default_next_page(request.user)),
+                    'oidc_error': 'We could not start Single Sign-On. Please try again.',
+                },
+            )
+
+    state = request.GET.get('state')
+    code = request.GET.get('code')
+    stored_state = request.session.get('oidc_state')
+    if not code:
+        request.session.pop('oidc_state', None)
+        request.session.pop('oidc_next', None)
+        return _restart_oidc_login('Missing authorization code in callback')
+
+    if not state or not stored_state or state != stored_state:
+        logger.warning(
+            'OIDC state mismatch or missing state on callback',
+            extra={
+                'provided_state': state,
+                'stored_state_present': stored_state is not None,
+                'path': request.path,
+            },
+        )
+        request.session.pop('oidc_state', None)
+        request.session.pop('oidc_next', None)
+        return _restart_oidc_login('State mismatch or missing state')
+
+    oidc = OIDCClient()
+    try:
+        token_response = oidc.exchange_code(code, request)
+        access_token = token_response.get('access_token')
+        if not access_token:
+            raise OIDCAuthenticationError('Missing access token in token response.')
+        userinfo = oidc.fetch_userinfo(access_token, token_response.get('id_token'))
+        userinfo = oidc.validate_userinfo(userinfo)
+    except (OIDCAuthenticationError, OIDCConfigurationError, requests.RequestException) as exc:
+        logger.warning('OIDC authentication failed: %s', exc)
+        return render(
+            request,
+            'users/user_login.html',
+            {
+                'form': forms.LoginForm(),
+                'next': quote(get_default_next_page(request.user)),
+                'oidc_error': str(exc),
+            },
+        )
+
+    email = userinfo[settings.OIDC_CLAIM_EMAIL].lower()
+    first_name = userinfo.get(settings.OIDC_CLAIM_GIVEN_NAME, '')
+    last_name = userinfo.get(settings.OIDC_CLAIM_FAMILY_NAME, '')
+    username = str(userinfo.get('sub', email.split('@')[0]))
+
+    user_model = get_user_model()
+    user, created = user_model.objects.get_or_create(
+        email=email, defaults={'username': username, 'first_name': first_name, 'last_name': last_name}
+    )
+    if created:
+        user.set_unusable_password()
+        user.save()
+    else:
+        update_fields = []
+        if user.username != username:
+            user.username = username
+            update_fields.append('username')
+        if user.first_name != first_name:
+            user.first_name = first_name
+            update_fields.append('first_name')
+        if user.last_name != last_name:
+            user.last_name = last_name
+            update_fields.append('last_name')
+        if update_fields:
+            user.save(update_fields=update_fields)
+
+    _ensure_user_membership(user)
+
+    login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+    if request.session.get('keep_me_logged_in') is False:
+        request.session.set_expiry(0)
+    else:
+        request.session['keep_me_logged_in'] = True
+
+    next_page = resolve_next_page(request, get_default_next_page(user))
+    # Cleanup state
+    request.session.pop('oidc_state', None)
+    request.session.pop('oidc_next', None)
+
+    return redirect(next_page)
 
 
 @login_required

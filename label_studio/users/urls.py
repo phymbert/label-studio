@@ -30,6 +30,12 @@ urlpatterns = [
     path('api/current-user/hotkeys/', api.UserHotkeysAPI.as_view(), name='current-user-hotkeys'),
 ]
 
+if settings.OIDC_ENABLED:
+    urlpatterns += [
+        path('user/sso/login/', views.user_sso_login, name='user-sso-login'),
+        path('user/sso/callback/', views.user_sso_callback, name='user-sso-callback'),
+    ]
+
 # When CLOUD_FILE_STORAGE_ENABLED is set, avatars are uploaded to cloud storage with a different URL pattern.
 # This local serving pattern is unnecessary for environments with cloud storage enabled.
 if not settings.CLOUD_FILE_STORAGE_ENABLED:
