@@ -45,7 +45,7 @@ export const Spinner = injector(({ SDK, visible = true, ...props }) => {
               src={source.x1}
               srcSet={[`${source.x1} 1x`, `${source.x2} 2x`].join(",")}
               style={videoStyles}
-              alt="opossum loader"
+              alt="BNP Paribas loader"
             />
           )}
         </div>
