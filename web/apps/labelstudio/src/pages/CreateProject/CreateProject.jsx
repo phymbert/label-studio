@@ -97,6 +97,7 @@ export const CreateProject = ({ onClose }) => {
   const [error, setError] = React.useState();
   const [description, setDescription] = React.useState("");
   const [sample, setSample] = React.useState(null);
+  const deleteGuardrailsEnabled = window.APP_SETTINGS?.delete_guardrails === true;
 
   const setStep = React.useCallback((step) => {
     _setStep(step);
@@ -161,7 +162,7 @@ export const CreateProject = ({ onClose }) => {
     setWaitingStatus(false);
 
     history.push(`/projects/${response.id}/data`);
-  }, [project, projectBody, finishUpload]);
+  }, [api, finishUpload, history, project, projectBody, sample, uploadSample]);
 
   const onSaveName = async () => {
     if (error) return;
@@ -182,19 +183,21 @@ export const CreateProject = ({ onClose }) => {
 
   const onDelete = React.useCallback(() => {
     const performClose = async () => {
+      const shouldDelete = project?.is_draft === true && !deleteGuardrailsEnabled;
       setWaitingStatus(true);
-      if (project)
+      if (project && shouldDelete) {
         await api.callApi("deleteProject", {
           params: {
             pk: project.id,
           },
         });
+      }
       setWaitingStatus(false);
       updateProject(null);
       onClose?.();
     };
     performClose();
-  }, [project]);
+  }, [api, deleteGuardrailsEnabled, onClose, project, updateProject]);
 
   return (
     <Modal onHide={onDelete} closeOnClickOutside={false} allowToInterceptEscape fullscreen visible bare>
@@ -204,15 +207,17 @@ export const CreateProject = ({ onClose }) => {
           <ToggleItems items={steps} active={step} onSelect={setStep} />
 
           <Space>
-            <Button
-              variant="negative"
-              look="outlined"
-              onClick={onDelete}
-              waiting={waiting}
-              aria-label="Cancel project creation"
-            >
-              Cancel
-            </Button>
+            {!deleteGuardrailsEnabled && (
+              <Button
+                variant="negative"
+                look="outlined"
+                onClick={onDelete}
+                waiting={waiting}
+                aria-label="Cancel project creation"
+              >
+                Cancel
+              </Button>
+            )}
             <Button
               look="primary"
               onClick={onCreate}

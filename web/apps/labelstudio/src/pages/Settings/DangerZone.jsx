@@ -18,6 +18,7 @@ export const DangerZone = () => {
   const history = useHistory();
   const toast = useToast();
   const [processing, setProcessing] = useState(null);
+  const deleteGuardrailsEnabled = window.APP_SETTINGS?.delete_guardrails === true;
 
   useUpdatePageTitle(createTitleFromSegments([project?.title, "Danger Zone"]));
 
@@ -157,8 +158,9 @@ export const DangerZone = () => {
     });
   };
 
-  const buttons = useMemo(
-    () => [
+  const buttons = useMemo(() => {
+    const deleteButtonTypes = new Set(["annotations", "tasks", "predictions", "project"]);
+    const items = [
       {
         type: "annotations",
         disabled: true, //&& !project.total_annotations_number,
@@ -192,9 +194,14 @@ export const DangerZone = () => {
         help: "Deleting a project removes all tasks, annotations, and project data from the database.",
         label: "Delete Project",
       },
-    ],
-    [project],
-  );
+    ];
+
+    if (!deleteGuardrailsEnabled) {
+      return items;
+    }
+
+    return items.filter((item) => !deleteButtonTypes.has(item.type));
+  }, [project, deleteGuardrailsEnabled]);
 
   return (
     <div className={cn("simple-settings")}>

@@ -112,6 +112,21 @@ class OrganizationMemberListPagination(PageNumberPagination):
         },
     ),
 )
+@method_decorator(
+    name='post',
+    decorator=extend_schema(
+        tags=['Organizations'],
+        summary='Add organization member',
+        description='Add a member to the organization.',
+        request=OrganizationMemberWriteSerializer,
+        responses={201: OrganizationMemberSerializer},
+        extensions={
+            'x-fern-sdk-group-name': ['organizations', 'members'],
+            'x-fern-sdk-method-name': 'create',
+            'x-fern-audiences': ['public'],
+        },
+    ),
+)
 class OrganizationMemberListAPI(generics.ListAPIView):
     parser_classes = (JSONParser, FormParser, MultiPartParser)
     permission_required = ViewClassPermission(
@@ -257,6 +272,29 @@ class OrganizationMemberListAPI(generics.ListAPIView):
         },
     ),
 )
+@method_decorator(
+    name='patch',
+    decorator=extend_schema(
+        tags=['Organizations'],
+        summary='Update organization member',
+        description='Update an organization member by user ID.',
+        parameters=[
+            OpenApiParameter(
+                name='user_pk',
+                type=OpenApiTypes.INT,
+                location='path',
+                description='A unique integer value identifying the user to update.',
+            ),
+        ],
+        request=OrganizationMemberWriteSerializer,
+        responses={200: OrganizationMemberSerializer},
+        extensions={
+            'x-fern-sdk-group-name': ['organizations', 'members'],
+            'x-fern-sdk-method-name': 'update',
+            'x-fern-audiences': ['public'],
+        },
+    ),
+)
 class OrganizationMemberDetailAPI(GetParentObjectMixin, generics.RetrieveDestroyAPIView):
     permission_required = ViewClassPermission(
         GET=all_permissions.organizations_view,
@@ -272,7 +310,7 @@ class OrganizationMemberDetailAPI(GetParentObjectMixin, generics.RetrieveDestroy
     def permission_classes(self):
         if self.request.method in ['DELETE', 'PATCH']:
             return [IsAuthenticated, HasObjectPermission]
-        return api_settings.DEFAULT_PERMISSION_CLASSES
+        return [IsAuthenticated]
 
     def get_queryset(self):
         return OrganizationMember.objects.filter(organization=self.parent_object)
@@ -287,6 +325,8 @@ class OrganizationMemberDetailAPI(GetParentObjectMixin, generics.RetrieveDestroy
         queryset = self.get_queryset()
         user = get_object_or_404(User, pk=user_pk)
         member = get_object_or_404(queryset, user=user)
+        if not getattr(request.user, 'is_superuser', False) and request.user.active_organization_id != member.organization_id:
+            raise PermissionDenied('You do not have permission to perform this action.')
         self.check_object_permissions(request, member)
         serializer = self.get_serializer(member)
         return Response(serializer.data)
