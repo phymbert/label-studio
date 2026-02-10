@@ -57,6 +57,15 @@ export const MembershipInfo = () => {
         case "RE":
           role = "Reviewer";
           break;
+        case "AN":
+          role = "Annotator";
+          break;
+        case "RE":
+          role = "Reviewer";
+          break;
+        case "RO":
+          role = "Read only";
+          break;
         case "NO":
           role = "Pending";
           break;

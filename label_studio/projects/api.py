@@ -13,6 +13,7 @@ from core.redis import start_job_async_or_sync
 from core.utils.common import paginator, paginator_help, temporary_disconnect_all_signals
 from core.utils.exceptions import LabelStudioDatabaseException, ProjectExistException
 from core.utils.filterset_to_openapi_params import filterset_to_openapi_params
+from core.utils.guardrails import require_delete_allowed
 from core.utils.io import find_dir, find_file, read_yaml
 from core.utils.serializer_to_openapi_params import serializer_to_openapi_params
 from data_manager.functions import filters_ordering_selected_items_exist, get_prepared_queryset
@@ -43,7 +44,7 @@ from projects.serializers import (
     ProjectSummarySerializer,
 )
 from rest_framework import filters, generics, status
-from rest_framework.exceptions import NotFound
+from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.exceptions import ValidationError as RestValidationError
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
@@ -201,6 +202,9 @@ class ProjectListAPI(generics.ListCreateAPIView):
         return context
 
     def perform_create(self, ser):
+        if not self.request.user.is_organization_admin():
+            raise PermissionDenied('Only organization administrators can create projects.')
+
         try:
             ser.save(organization=self.request.user.active_organization)
         except IntegrityError as e:
@@ -398,10 +402,14 @@ class ProjectAPI(generics.RetrieveUpdateDestroyAPIView):
 
     @api_webhook_for_delete(WebhookAction.PROJECT_DELETED)
     def delete(self, request, *args, **kwargs):
+        require_delete_allowed('projects')
         return super(ProjectAPI, self).delete(request, *args, **kwargs)
 
     @api_webhook(WebhookAction.PROJECT_UPDATED)
     def patch(self, request, *args, **kwargs):
+        if not request.user.is_organization_admin():
+            raise PermissionDenied('Only organization administrators can update project settings.')
+
         project = self.get_object()
         label_config = self.request.data.get('label_config')
 
@@ -422,6 +430,8 @@ class ProjectAPI(generics.RetrieveUpdateDestroyAPIView):
     @extend_schema(exclude=True)
     @api_webhook(WebhookAction.PROJECT_UPDATED)
     def put(self, request, *args, **kwargs):
+        if not request.user.is_organization_admin():
+            raise PermissionDenied('Only organization administrators can update project settings.')
         return super(ProjectAPI, self).put(request, *args, **kwargs)
 
 
@@ -755,6 +765,7 @@ class ProjectTaskListAPI(GetParentObjectMixin, generics.ListCreateAPIView, gener
             raise Http404
 
     def delete(self, request, *args, **kwargs):
+        require_delete_allowed('tasks')
         project = generics.get_object_or_404(Project.objects.for_user(self.request.user), pk=self.kwargs['pk'])
         task_ids = list(Task.objects.filter(project=project).values('id'))
         Task.delete_tasks_without_signals(Task.objects.filter(project=project))
@@ -886,6 +897,7 @@ class ProjectModelVersions(generics.RetrieveAPIView):
             return Response(data=data)
 
     def delete(self, request, *args, **kwargs):
+        require_delete_allowed('predictions')
         project = self.get_object()
         model_version = request.data.get('model_version', None)
 

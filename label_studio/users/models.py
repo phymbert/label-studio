@@ -176,8 +176,22 @@ class User(UserMixin, AbstractBaseUser, PermissionsMixin, UserLastActivityMixin)
             else:
                 return settings.HOSTNAME + self.avatar.url
 
-    def is_organization_admin(self, org_pk):
-        return True
+    def is_organization_admin(self, org_pk=None):
+        from organizations.models import OrganizationMember, OrganizationRole
+
+        if getattr(self, 'is_superuser', False):
+            return True
+
+        organization_id = org_pk or self.active_organization_id
+        if not organization_id:
+            return False
+
+        return OrganizationMember.objects.filter(
+            organization_id=organization_id,
+            user=self,
+            deleted_at__isnull=True,
+            role__in=OrganizationRole.superuser_roles(),
+        ).exists()
 
     def active_organization_annotations(self):
         return self.annotations.filter(project__organization=self.active_organization)
@@ -197,6 +211,13 @@ class User(UserMixin, AbstractBaseUser, PermissionsMixin, UserLastActivityMixin)
     def clean(self):
         super().clean()
         self.email = self.__class__.objects.normalize_email(self.email)
+
+    @property
+    def role(self):
+        membership = self.om_through.filter(
+            organization_id=self.active_organization_id, deleted_at__isnull=True
+        ).first()
+        return membership.role if membership else None
 
     def name_or_email(self):
         name = self.get_full_name()

@@ -21,10 +21,12 @@ export const ProjectDashboardPage = () => {
   const [selectedViewIds, setSelectedViewIds] = useState([]);
   const [annotators, setAnnotators] = useState([]);
   const [selectedAnnotatorIds, setSelectedAnnotatorIds] = useState([]);
+  const [annotatorsRequested, setAnnotatorsRequested] = useState(false);
   const [dashboardData, setDashboardData] = useState([]);
   const [annotationSummary, setAnnotationSummary] = useState([]);
   const [hoveredViewId, setHoveredViewId] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [hoveredAnnotationName, setHoveredAnnotationName] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!projectId) return;
@@ -37,7 +39,6 @@ export const ProjectDashboardPage = () => {
       const sortedViews = (response ?? []).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
       setViews(sortedViews);
-      setSelectedViewIds((prev) => (prev.length ? prev : sortedViews.map((view) => view.id)));
     };
 
     fetchViews();
@@ -45,15 +46,28 @@ export const ProjectDashboardPage = () => {
 
   useEffect(() => {
     if (!projectId) return;
+    if (!selectedViewIds.length) {
+      setDashboardData([]);
+      setAnnotationSummary([]);
+      setAnnotators([]);
+      setSelectedAnnotatorIds([]);
+      setAnnotatorsRequested(false);
+      setLoading(false);
+      return;
+    }
 
     const fetchDashboard = async () => {
       setLoading(true);
+      const requestParams = {
+        project: projectId,
+        views: selectedViewIds.join(","),
+      };
+
+      if (annotatorsRequested && selectedAnnotatorIds.length) {
+        requestParams.annotators = selectedAnnotatorIds.join(",");
+      }
       const response = await api.callApi("dmDashboard", {
-        params: {
-          project: projectId,
-          views: selectedViewIds.join(","),
-          annotators: selectedAnnotatorIds.join(","),
-        },
+        params: requestParams,
       });
 
       setDashboardData(response?.views ?? []);
@@ -63,7 +77,7 @@ export const ProjectDashboardPage = () => {
         if (!response?.annotators?.length) return prev.length ? [] : prev;
         const availableIds = new Set(response.annotators.map((annotator) => annotator.id));
         const filtered = prev.filter((id) => availableIds.has(id));
-        if (!filtered.length) {
+        if (!annotatorsRequested && !filtered.length) {
           return response.annotators.map((annotator) => annotator.id);
         }
         return filtered;
@@ -72,7 +86,13 @@ export const ProjectDashboardPage = () => {
     };
 
     fetchDashboard();
-  }, [api, projectId, selectedAnnotatorIds.join(","), selectedViewIds.join(",")]);
+  }, [
+    api,
+    projectId,
+    annotatorsRequested,
+    selectedAnnotatorIds.join(","),
+    selectedViewIds.join(","),
+  ]);
 
   const maxTasks = useMemo(() => {
     return Math.max(...dashboardData.map((view) => view.task_count), 1);
@@ -95,7 +115,81 @@ export const ProjectDashboardPage = () => {
   };
 
   const handleBarClick = (viewId) => {
-    history.push(`/projects/${projectId}/data?view=${viewId}`);
+    const targetProjectId = projectId ?? params?.id;
+    if (!targetProjectId) return;
+    window.open(`/projects/${targetProjectId}/data?tab=${viewId}`, "_blank", "noopener");
+  };
+
+  const handleAnnotatorToggle = (id) => {
+    setAnnotatorsRequested(true);
+    toggleSelection(id, setSelectedAnnotatorIds);
+  };
+
+  const handleAnnotatorToggleAll = () => {
+    setAnnotatorsRequested(true);
+    toggleAll(
+      annotators.map((annotator) => annotator.id),
+      selectedAnnotatorIds,
+      setSelectedAnnotatorIds,
+    );
+  };
+
+  const hasSelectedViews = selectedViewIds.length > 0;
+
+  const chartColors = ["#22c55e", "#2563eb", "#f97316", "#a855f7", "#ec4899", "#f59e0b"];
+
+  const getChoiceColor = (choiceValue, index) => {
+    const normalized = String(choiceValue).toLowerCase();
+    if (normalized.includes("yes") || normalized.includes("accept")) return "#22c55e";
+    if (normalized.includes("no") || normalized.includes("reject")) return "#ef4444";
+    if (normalized.includes("need")) return "#f59e0b";
+    return chartColors[index % chartColors.length];
+  };
+
+  const renderYAxis = (maxValue) => {
+    const ticks = 4;
+    const labels = Array.from({ length: ticks + 1 }, (_, index) => {
+      const value = Math.round((maxValue / ticks) * (ticks - index));
+      return value;
+    });
+
+    return (
+      <div className={dashboardClass.elem("y-axis").toClassName()}>
+        {labels.map((label) => (
+          <div key={label} className={dashboardClass.elem("y-axis-label").toClassName()}>
+            {label}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  const exportAnnotationCsv = () => {
+    if (!annotationSummary.length) return;
+
+    const rows = [["annotation_name", "choice_value", "count", "total", "percentage"]];
+
+    annotationSummary.forEach((item) => {
+      const total = item.total || 0;
+      item.choices.forEach((choice) => {
+        const percentage = total ? ((choice.count / total) * 100).toFixed(2) : "0.00";
+        rows.push([item.name, choice.value, choice.count, total, percentage]);
+      });
+    });
+
+    const csv = rows
+      .map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `dashboard-annotations-${projectId ?? "project"}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -108,6 +202,16 @@ export const ProjectDashboardPage = () => {
       </header>
 
       <section className={dashboardClass.elem("filters").toClassName()}>
+        <div className={dashboardClass.elem("filters-actions").toClassName()}>
+          <button
+            type="button"
+            className={dashboardClass.elem("export-button").toClassName()}
+            onClick={exportAnnotationCsv}
+            disabled={!annotationSummary.length}
+          >
+            Export annotations CSV
+          </button>
+        </div>
         <div className={dashboardClass.elem("filter-group").toClassName()}>
           <div className={dashboardClass.elem("filter-header").toClassName()}>
             <h3>Tabs</h3>
@@ -140,11 +244,7 @@ export const ProjectDashboardPage = () => {
             <h3>Annotators</h3>
             <Checkbox
               checked={selectedAnnotatorIds.length === annotators.length && annotators.length > 0}
-              onChange={() => toggleAll(
-                annotators.map((annotator) => annotator.id),
-                selectedAnnotatorIds,
-                setSelectedAnnotatorIds,
-              )}
+              onChange={handleAnnotatorToggleAll}
             >
               Select all
             </Checkbox>
@@ -154,7 +254,7 @@ export const ProjectDashboardPage = () => {
               <Checkbox
                 key={annotator.id}
                 checked={selectedAnnotatorIds.includes(annotator.id)}
-                onChange={() => toggleSelection(annotator.id, setSelectedAnnotatorIds)}
+                onChange={() => handleAnnotatorToggle(annotator.id)}
               >
                 {annotator.name}
               </Checkbox>
@@ -164,29 +264,58 @@ export const ProjectDashboardPage = () => {
       </section>
 
       <section className={dashboardClass.elem("chart").toClassName()}>
-        {loading ? (
+        {!hasSelectedViews ? (
+          <div className={dashboardClass.elem("empty").toClassName()}>
+            Select at least one tab to load the dashboard.
+          </div>
+        ) : loading ? (
           <div className={dashboardClass.elem("loading").toClassName()}>
             <Spinner size={48} />
           </div>
         ) : dashboardData.length ? (
-          <div className={dashboardClass.elem("bars").toClassName()}>
-            {dashboardData.map((view) => {
-              const heightPercent = Math.round((view.task_count / maxTasks) * 100);
-              const isHovered = hoveredViewId === view.id;
+          <div className={dashboardClass.elem("chart-body").toClassName()}>
+            {renderYAxis(maxTasks)}
+            <div className={dashboardClass.elem("bars").toClassName()}>
+              {dashboardData.map((view) => {
+                const heightPercent = Math.round((view.task_count / maxTasks) * 100);
+                const isHovered = hoveredViewId === view.id;
+                const annotatedHeight = view.task_count
+                  ? Math.round((view.annotated_count / view.task_count) * 100)
+                  : 0;
+                const remainingHeight = 100 - annotatedHeight;
 
-              return (
-                <div key={view.id} className={dashboardClass.elem("bar-wrapper").toClassName()}>
-                  <button
-                    type="button"
-                    className={dashboardClass.elem("bar").toClassName()}
-                    style={{ height: `${heightPercent}%` }}
-                    onClick={() => handleBarClick(view.id)}
+                return (
+                  <div
+                    key={view.id}
+                    className={dashboardClass.elem("bar-wrapper").toClassName()}
                     onMouseEnter={() => setHoveredViewId(view.id)}
                     onMouseLeave={() => setHoveredViewId(null)}
                   >
-                    <span className={dashboardClass.elem("bar-label").toClassName()}>
-                      {view.annotated_count}/{view.task_count}
-                    </span>
+                    <button
+                      type="button"
+                      className={dashboardClass.elem("bar").mod({ stacked: true }).toClassName()}
+                      style={{ height: `${heightPercent}%` }}
+                      onClick={() => handleBarClick(view.id)}
+                    >
+                      <div
+                        className={dashboardClass.elem("bar-segment").toClassName()}
+                        style={{ height: `${annotatedHeight}%`, background: "#2563eb" }}
+                      >
+                        {view.annotated_count}
+                      </div>
+                      <div
+                        className={dashboardClass.elem("bar-segment").toClassName()}
+                        style={{ height: `${remainingHeight}%`, background: "#93c5fd" }}
+                      >
+                        {view.task_count - view.annotated_count}
+                      </div>
+                      <span className={dashboardClass.elem("bar-label").toClassName()}>
+                        {view.annotated_count}/{view.task_count}
+                      </span>
+                    </button>
+                    <div className={dashboardClass.elem("bar-caption").toClassName()}>
+                      {view.title}
+                    </div>
                     {isHovered && (
                       <div className={dashboardClass.elem("tooltip").toClassName()}>
                         <div className={dashboardClass.elem("tooltip-title").toClassName()}>
@@ -207,58 +336,90 @@ export const ProjectDashboardPage = () => {
                         )}
                       </div>
                     )}
-                  </button>
-                  <div className={dashboardClass.elem("bar-caption").toClassName()}>{view.title}</div>
-                </div>
-              );
-            })}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         ) : (
           <div className={dashboardClass.elem("empty").toClassName()}>
-            No tabs selected for the dashboard.
+            No data available for the selected tabs.
           </div>
         )}
       </section>
 
       <section className={dashboardClass.elem("chart").toClassName()}>
-        {loading ? (
+        {!hasSelectedViews ? (
+          <div className={dashboardClass.elem("empty").toClassName()}>
+            Select at least one tab to load annotation summaries.
+          </div>
+        ) : loading ? (
           <div className={dashboardClass.elem("loading").toClassName()}>
             <Spinner size={48} />
           </div>
         ) : annotationSummary.length ? (
-          <div className={dashboardClass.elem("bars").toClassName()}>
-            {annotationSummary.map((item) => {
-              const heightPercent = Math.round((item.total / maxAnnotations) * 100);
-              const yesHeight = item.total ? Math.round((item.yes / item.total) * 100) : 0;
-              const noHeight = 100 - yesHeight;
+          <div className={dashboardClass.elem("chart-body").toClassName()}>
+            {renderYAxis(maxAnnotations)}
+            <div className={dashboardClass.elem("bars").toClassName()}>
+              {annotationSummary.map((item) => {
+                const heightPercent = Math.round((item.total / maxAnnotations) * 100);
+                const isHovered = hoveredAnnotationName === item.name;
 
-              return (
-                <div key={item.name} className={dashboardClass.elem("bar-wrapper").toClassName()}>
+                return (
                   <div
-                    className={dashboardClass.elem("bar").mod({ stacked: true }).toClassName()}
-                    style={{ height: `${heightPercent}%` }}
+                    key={item.name}
+                    className={dashboardClass.elem("bar-wrapper").toClassName()}
+                    onMouseEnter={() => setHoveredAnnotationName(item.name)}
+                    onMouseLeave={() => setHoveredAnnotationName(null)}
                   >
                     <div
-                      className={dashboardClass.elem("bar-segment").mod({ yes: true }).toClassName()}
-                      style={{ height: `${yesHeight}%` }}
+                      className={dashboardClass.elem("bar").mod({ stacked: true }).toClassName()}
+                      style={{ height: `${heightPercent}%` }}
                     >
-                      {item.yes}
+                      {item.choices.map((choice, index) => {
+                        const segmentHeight = item.total
+                          ? Math.round((choice.count / item.total) * 100)
+                          : 0;
+
+                        return (
+                          <div
+                            key={`${choice.value}-${index}`}
+                            className={dashboardClass.elem("bar-segment").toClassName()}
+                            style={{
+                              height: `${segmentHeight}%`,
+                              background: getChoiceColor(choice.value, index),
+                            }}
+                          >
+                            {choice.count}
+                          </div>
+                        );
+                      })}
                     </div>
-                    <div
-                      className={dashboardClass.elem("bar-segment").mod({ no: true }).toClassName()}
-                      style={{ height: `${noHeight}%` }}
-                    >
-                      {item.no}
+                    <div className={dashboardClass.elem("bar-caption").toClassName()}>
+                      {item.name}
                     </div>
+                    {isHovered && (
+                      <div className={dashboardClass.elem("tooltip").toClassName()}>
+                        <div className={dashboardClass.elem("tooltip-title").toClassName()}>
+                          {item.name}
+                        </div>
+                        <ul>
+                          {item.choices.map((choice) => (
+                            <li key={choice.value}>
+                              {choice.value}: {choice.count}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
-                  <div className={dashboardClass.elem("bar-caption").toClassName()}>{item.name}</div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         ) : (
           <div className={dashboardClass.elem("empty").toClassName()}>
-            No Yes/No choice annotations found for the selected filters.
+            No choice annotations found for the selected filters.
           </div>
         )}
       </section>

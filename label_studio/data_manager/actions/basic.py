@@ -7,6 +7,7 @@ from core.feature_flags import flag_set
 from core.permissions import AllPermissions
 from core.redis import start_job_async_or_sync
 from core.utils.common import load_func
+from core.utils.guardrails import require_delete_allowed
 from data_manager.actions import DataManagerAction
 from data_manager.functions import evaluate_predictions
 from django.conf import settings
@@ -37,6 +38,7 @@ def delete_tasks(project, queryset, **kwargs):
     :param project: project instance
     :param queryset: filtered tasks db queryset
     """
+    require_delete_allowed('tasks')
     tasks_ids = list(queryset.values('id'))
     count = len(tasks_ids)
     tasks_ids_list = [task['id'] for task in tasks_ids]
@@ -79,6 +81,7 @@ def delete_tasks_annotations(project, queryset, **kwargs):
     :param project: project instance
     :param queryset: filtered tasks db queryset
     """
+    require_delete_allowed('annotations')
     request = kwargs['request']
     annotator_id = request.data.get('annotator')
 
@@ -150,6 +153,7 @@ def delete_tasks_predictions(project, queryset, **kwargs):
     :param project: project instance
     :param queryset: filtered tasks db queryset
     """
+    require_delete_allowed('predictions')
     task_ids = queryset.values_list('id', flat=True)
     predictions = Prediction.objects.filter(task__id__in=task_ids)
     if flag_set('fflag_root_223_optimize_delete_predictions', organization=project.organization):

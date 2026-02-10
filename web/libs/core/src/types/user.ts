@@ -15,6 +15,7 @@ export type APIUser = {
     title: string;
     email: string;
   };
+  role?: string;
   allow_newsletters: boolean;
   date_joined: string;
   permissions?: Ability[];

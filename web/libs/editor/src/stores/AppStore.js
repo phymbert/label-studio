@@ -328,6 +328,15 @@ export default types
       // important thing to detect Area atomatically: it hasn't access to store, only via global
       window.Htx = self;
 
+      const userRole = window.APP_SETTINGS?.user?.role;
+      const reviewRoles = ["OW", "AD", "RE"];
+      if (reviewRoles.includes(userRole) && !self.hasInterface("review")) {
+        addInterface("review");
+      }
+      if (window.APP_SETTINGS?.delete_guardrails === true) {
+        toggleInterface("annotations:delete", false);
+      }
+
       self.attachHotkeys();
 
       getEnv(self).events.invoke("labelStudioLoad", self);
@@ -613,6 +622,12 @@ export default types
 
     function submitAnnotation() {
       if (self.isSubmitting) return;
+      const userRole = window.APP_SETTINGS?.user?.role;
+      const annotateRoles = ["OW", "AD", "AN"];
+      if (!annotateRoles.includes(userRole)) {
+        console.warn("Annotation submit is disabled for role:", userRole);
+        return;
+      }
 
       const entity = self.annotationStore.selected;
       const event = entity.exists ? "updateAnnotation" : "submitAnnotation";
@@ -645,6 +660,12 @@ export default types
 
     function updateAnnotation(extraData) {
       if (self.isSubmitting) return;
+      const userRole = window.APP_SETTINGS?.user?.role;
+      const annotateRoles = ["OW", "AD", "AN"];
+      if (!annotateRoles.includes(userRole)) {
+        console.warn("Annotation update is disabled for role:", userRole);
+        return;
+      }
 
       const entity = self.annotationStore.selected;
 
@@ -702,6 +723,12 @@ export default types
 
     function acceptAnnotation() {
       if (self.isSubmitting) return;
+      const userRole = window.APP_SETTINGS?.user?.role;
+      const reviewRoles = ["OW", "AD", "RE"];
+      if (!reviewRoles.includes(userRole)) {
+        console.warn("Annotation validation is disabled for role:", userRole);
+        return;
+      }
 
       handleSubmittingFlag(async () => {
         const entity = self.annotationStore.selected;
@@ -726,6 +753,12 @@ export default types
 
     function rejectAnnotation({ comment = null }) {
       if (self.isSubmitting) return;
+      const userRole = window.APP_SETTINGS?.user?.role;
+      const reviewRoles = ["OW", "AD", "RE"];
+      if (!reviewRoles.includes(userRole)) {
+        console.warn("Annotation validation is disabled for role:", userRole);
+        return;
+      }
 
       handleSubmittingFlag(async () => {
         const entity = self.annotationStore.selected;

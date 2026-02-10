@@ -14,6 +14,8 @@ class BaseUserSerializer(FlexFieldsModelSerializer):
     avatar = serializers.SerializerMethodField(read_only=True)
     active_organization_meta = serializers.SerializerMethodField(read_only=True)
     last_activity = serializers.DateTimeField(read_only=True, source='last_activity_cached')
+    role = serializers.SerializerMethodField(read_only=True)
+    is_superuser = serializers.BooleanField(read_only=True)
 
     def get_avatar(self, instance):
         return instance.avatar_url
@@ -76,6 +78,18 @@ class BaseUserSerializer(FlexFieldsModelSerializer):
 
         return self.context[key][uid]
 
+    def get_role(self, instance):
+        active_org = None
+        if 'user' in self.context:
+            active_org = self.context['user'].active_organization_id
+        elif 'request' in self.context:
+            active_org = self.context['request'].user.active_organization_id
+        else:
+            active_org = instance.active_organization_id
+
+        membership = instance.om_through.filter(organization_id=active_org, deleted_at__isnull=True).first()
+        return getattr(membership, 'role', None)
+
     class Meta:
         model = User
         fields = (
@@ -91,6 +105,8 @@ class BaseUserSerializer(FlexFieldsModelSerializer):
             'phone',
             'active_organization',
             'active_organization_meta',
+            'role',
+            'is_superuser',
             'allow_newsletters',
             'date_joined',
         )
@@ -103,12 +119,21 @@ class BaseUserSerializerUpdate(BaseUserSerializer):
 
 class BaseWhoAmIUserSerializer(BaseUserSerializer):
     permissions = serializers.SerializerMethodField()
+    role = serializers.SerializerMethodField()
 
     class Meta(BaseUserSerializer.Meta):
-        fields = BaseUserSerializer.Meta.fields + ('permissions',)
+        fields = BaseUserSerializer.Meta.fields + ('permissions', 'role')
 
     def get_permissions(self, user) -> list[str]:
         return [perm for _, perm in all_permissions]
+
+    def get_role(self, user) -> str | None:
+        active_org = user.active_organization_id
+        if not active_org:
+            return None
+
+        membership = user.om_through.filter(organization_id=active_org, deleted_at__isnull=True).first()
+        return getattr(membership, 'role', None)
 
 
 class UserSimpleSerializer(BaseUserSerializer):

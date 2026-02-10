@@ -159,6 +159,8 @@
       initials: "{{user.get_initials}}",
 	email: "{{user.email}}",
 	customHotkeys: __customHotkeys,
+      role: "{{ user.role }}",
+      is_superuser: {{ user.is_superuser|yesno:"true,false" }},
 
       allow_newsletters: {% if user.allow_newsletters is None %}null{% else %}{{user.allow_newsletters|yesno:"true,false"}}{% endif %},
       {% if user.avatar %}
@@ -178,6 +180,7 @@
     feature_flags: {{ feature_flags|json_dumps_ensure_ascii|safe }},
     feature_flags_default_value: {{ settings.FEATURE_FLAGS_DEFAULT_VALUE|json_dumps_ensure_ascii|safe }},
     version_edition: "{{ settings.VERSION_EDITION }}",
+    delete_guardrails: {{ settings.GUARDRAILS|yesno:"true,false" }},
     server_id: {{ request.server_id|json_dumps_ensure_ascii|safe }},
     collect_analytics: {{ settings.COLLECT_ANALYTICS|yesno:"true,false" }},
     local_files_document_root: {{ settings.LOCAL_FILES_DOCUMENT_ROOT|json_dumps_ensure_ascii|safe }},
@@ -196,6 +199,10 @@
     {% endblock %}
 
   }, {% block frontend_settings %}{}{% endblock %});
+
+  if (window.APP_SETTINGS?.user?.role === "DI") {
+    window.location.href = "/logout";
+  }
 </script>
 
 {% block app-js %}
